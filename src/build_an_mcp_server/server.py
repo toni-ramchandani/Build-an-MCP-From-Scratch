@@ -2,22 +2,25 @@
 
 import json
 import os
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import requests
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 from github import Github, GithubException
 from mcp.server.fastmcp import FastMCP
 from playwright.async_api import TimeoutError as PWTimeoutError
 
-from browser_utils import close_page, get_page, new_page, page_screenshot_base64
-from fs_utils import (
+from .browser_utils import close_page, get_page, new_page, page_screenshot_base64
+from .fs_utils import (
     list_directory as fs_list_directory,
     read_file_text,
     resolve_and_validate,
 )
+from .github_utils import get_github_client as _get_github_client
 
-load_dotenv()
+# Load environment variables - search up the directory tree for .env file
+load_dotenv(find_dotenv(usecwd=True))
 
 mcp = FastMCP("GitHub MCP Server")
 
@@ -85,12 +88,8 @@ def list_directory(path: str = ".") -> Dict[str, Any]:
 # GitHub helpers
 # ---------------------------------------------------------------------------
 
-def get_github_client() -> Github:
-    """Return an authenticated GitHub client."""
-    token = os.getenv("GITHUB_TOKEN")
-    if not token:
-        raise ValueError("GITHUB_TOKEN environment variable is required")
-    return Github(token)
+# Use the GitHub client from github_utils module
+get_github_client = _get_github_client
 
 
 # ---------------------------------------------------------------------------
@@ -754,5 +753,10 @@ Use the available browser automation tools (open_page, click, fill, get_text, sc
     ]
 
 
-if __name__ == "__main__":
+def main():
+    """Main entry point for the MCP server."""
     mcp.run()
+
+
+if __name__ == "__main__":
+    main()
