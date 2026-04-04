@@ -187,13 +187,18 @@ Build-an-MCP-From-Scratch/
 ├── README.md               # This file
 ├── .env.example            # Environment variables template
 ├── .gitignore              # Git ignore rules
-└── src/
-    └── build_an_mcp_server/
-        ├── __init__.py         # Package initialization
-        ├── server.py           # Main MCP server implementation
-        ├── fs_utils.py         # Filesystem utilities
-        ├── github_utils.py     # GitHub API helpers
-        └── browser_utils.py    # Browser automation helpers
+├── src/
+│   └── build_an_mcp_server/
+│       ├── __init__.py         # Package initialization
+│       ├── server.py           # Main MCP server implementation
+│       ├── fs_utils.py         # Filesystem utilities
+│       ├── github_utils.py     # GitHub API helpers
+│       └── browser_utils.py    # Browser automation helpers
+└── examples/               # Usage examples
+    ├── README.md           # Examples overview
+    └── http_transport/     # HTTP/SSE transport example
+        ├── README.md
+        └── server_http.py
 ```
 
 ## Security Considerations
@@ -235,14 +240,32 @@ pip install -e .
 
 Use the official MCP Inspector to test your server:
 
+**With stdio transport (default):**
 ```bash
 npx @modelcontextprotocol/inspector python -m build_an_mcp_server.server
+```
+
+**With HTTP transport (see examples):**
+```bash
+# Run the HTTP server first
+python examples/http_transport/server_http.py
+
+# Then connect inspector
+npx @modelcontextprotocol/inspector http://localhost:3000/sse
 ```
 
 This will open a web interface where you can:
 - Browse and test all available tools
 - View resources and prompts
 - Debug server responses
+
+## Examples
+
+Check the [examples/](examples/) directory for practical demonstrations:
+- **HTTP Transport**: Run the server as a web service with SSE transport
+- More examples coming soon!
+
+Each example includes its own README with detailed instructions.
 
 ## Acknowledgments
 
