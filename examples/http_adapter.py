@@ -13,7 +13,7 @@ from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SERVER_ENTRY = REPO_ROOT / "server.py"
+SERVER_ENTRY = REPO_ROOT / "src" / "build_an_mcp_server" / "server.py"
 
 app = FastAPI(title="MCP HTTP Adapter")
 
@@ -106,7 +106,8 @@ class StdioBridge:
             self.proc.kill()
 
 
-bridge = StdioBridge([sys.executable, str(SERVER_ENTRY)])
+# Run server as module to avoid import issues
+bridge = StdioBridge([sys.executable, "-m", "build_an_mcp_server.server"])
 
 
 def _accepts_sse(request: Request) -> bool:
