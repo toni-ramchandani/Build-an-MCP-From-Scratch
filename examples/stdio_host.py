@@ -1,9 +1,3 @@
-# examples/stdio_host.py
-# STDIO host for your Ops-MCP server (server.py), with correct MCP handshake.
-# Usage:
-#   python examples/stdio_host.py
-#   python examples/stdio_host.py --call get_user_info --args '{"username":"octocat"}'
-
 from __future__ import annotations
 import argparse, json, os, queue, sys, threading, subprocess, uuid
 from pathlib import Path

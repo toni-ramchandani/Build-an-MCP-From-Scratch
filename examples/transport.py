@@ -1,4 +1,3 @@
-# transport.py #3.4
 from __future__ import annotations
 import abc, json, queue, subprocess, sys, urllib.request            #A
 from dataclasses import dataclass                                    #A

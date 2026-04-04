@@ -1,5 +1,5 @@
 """
-Build an MCP Server - A production-ready MCP server implementation.
+Build an MCP Server from Scratch.
 
 This package provides a Model Context Protocol (MCP) server with:
 - Filesystem operations (read, write, list)

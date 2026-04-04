@@ -1,4 +1,3 @@
-# examples/http_adapter.py #3.3
 from __future__ import annotations
 import json, os, queue, subprocess, sys, threading, uuid               #A
 from pathlib import Path                                               #A

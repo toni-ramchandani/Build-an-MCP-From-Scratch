@@ -1,5 +1,3 @@
-# examples/validate_and_call.py #3.5
-# Pre-validate tool arguments using JSON Schema, then call tools/call if valid.
 from __future__ import annotations
 import argparse
 import json
