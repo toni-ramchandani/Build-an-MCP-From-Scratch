@@ -11,7 +11,7 @@ import uuid
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SERVER_ENTRY = REPO_ROOT / "server.py"
+SERVER_ENTRY = REPO_ROOT / "src" / "build_an_mcp_server" / "server.py"
 
 PROTOCOL_VERSION = os.environ.get("MCP_PROTOCOL_VERSION", "2025-11-25")
 
@@ -189,7 +189,8 @@ def main() -> None:
             "[warn] GITHUB_TOKEN not set; GitHub-backed server tools may fail.\n"
         )
 
-    host = MCPHost([args.python, args.server], cwd=REPO_ROOT, env=env)
+    # Run server as module to avoid import issues
+    host = MCPHost([args.python, "-m", "build_an_mcp_server.server"], cwd=REPO_ROOT, env=env)
     try:
         print(">> initialize")
         init_reply = initialize(host)
