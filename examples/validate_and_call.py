@@ -16,7 +16,7 @@ except Exception:
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SERVER_ENTRY = REPO_ROOT / "server.py"
+SERVER_ENTRY = REPO_ROOT / "src" / "build_an_mcp_server" / "server.py"
 PROTOCOL_VERSION = os.environ.get("MCP_PROTOCOL_VERSION", "2025-11-25")
 
 
@@ -192,7 +192,8 @@ def main() -> int:
     except Exception:
         pass
 
-    host = MCPHost([args.python, args.server])
+    # Run server as module to avoid import issues
+    host = MCPHost([args.python, "-m", "build_an_mcp_server.server"])
     try:
         initialize(host)
         send_initialized(host)
