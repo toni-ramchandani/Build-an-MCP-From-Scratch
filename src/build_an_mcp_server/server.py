@@ -22,7 +22,7 @@ from .github_utils import get_github_client as _get_github_client
 # Load environment variables - search up the directory tree for .env file
 load_dotenv(find_dotenv(usecwd=True))
 
-mcp = FastMCP("GitHub MCP Server")
+mcp = FastMCP("Build an MCP from Scratch")
 
 
 # ---------------------------------------------------------------------------
