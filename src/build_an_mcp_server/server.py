@@ -11,20 +11,16 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.fastmcp.prompts import base
 from playwright.async_api import TimeoutError as PWTimeoutError
 
+# Load environment variables - search up the directory tree for .env file
+load_dotenv(find_dotenv(usecwd=True))
+
 from .browser_utils import close_page, get_page, new_page, page_screenshot_base64
 from .fs_utils import (
     list_directory as fs_list_directory,
     read_file_text,
     resolve_and_validate,
 )
-from .github_utils import (
-    fetch_open_issues,
-    fetch_repository_metadata,
-    get_github_client,
-)
-
-# Load environment variables - search up the directory tree for .env file
-load_dotenv(find_dotenv(usecwd=True))
+from .github_utils import get_github_client
 
 mcp = FastMCP("Build an MCP from Scratch")
 
