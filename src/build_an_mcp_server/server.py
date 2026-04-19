@@ -2,13 +2,13 @@
 
 import json
 import os
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import requests
-from dotenv import load_dotenv, find_dotenv
-from github import Github, GithubException
+from dotenv import find_dotenv, load_dotenv
+from github import GithubException
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.prompts import base
 from playwright.async_api import TimeoutError as PWTimeoutError
 
 from .browser_utils import close_page, get_page, new_page, page_screenshot_base64
@@ -17,7 +17,11 @@ from .fs_utils import (
     read_file_text,
     resolve_and_validate,
 )
-from .github_utils import get_github_client as _get_github_client
+from .github_utils import (
+    fetch_open_issues,
+    fetch_repository_metadata,
+    get_github_client,
+)
 
 # Load environment variables - search up the directory tree for .env file
 load_dotenv(find_dotenv(usecwd=True))
@@ -29,12 +33,17 @@ mcp = FastMCP("Build an MCP from Scratch")
 # Filesystem MCP – Resources & Tools
 # ---------------------------------------------------------------------------
 
-@mcp.resource("file://{file_path}")
+@mcp.resource("file:///{file_path}")
 def get_file(file_path: str) -> str:
-    """Return text content of a file within allowed directories."""
+    """Return text content of a file within allowed directories.
+
+    If the file exceeds the inline limit, the output will be truncated with a
+    notice. Binary data is decoded using UTF-8 with replacement of undecodable
+    bytes, ensuring the response is always valid UTF-8.
+    """
     try:
         return read_file_text(file_path)
-    except Exception:
+    except (ValueError, OSError):
         return "Unable to read the requested file."
 
 
@@ -48,7 +57,7 @@ def read_file(path: str) -> dict[str, object]:
             "path": path,
             "content": content,
         }
-    except Exception:
+    except (ValueError, OSError):
         return {
             "ok": False,
             "path": path,
@@ -57,7 +66,7 @@ def read_file(path: str) -> dict[str, object]:
 
 
 @mcp.tool()
-def write_file(path: str, content: str, overwrite: bool = True) -> Dict[str, Any]:
+def write_file(path: str, content: str, overwrite: bool = True) -> dict[str, object]:
     """Write *content* to *path*.
 
     If *overwrite* is False and the file exists, the operation will fail.
@@ -65,31 +74,43 @@ def write_file(path: str, content: str, overwrite: bool = True) -> Dict[str, Any
     try:
         p = resolve_and_validate(path)
         if p.exists() and not overwrite:
-            return {"error": "File exists and overwrite is False"}
+            return {
+                "ok": False,
+                "path": path,
+                "error": "File exists and overwrite is False",
+            }
 
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(content, encoding="utf-8")
-        return {"path": str(p), "bytes_written": len(content)}
-    except Exception as exc:
-        return {"error": str(exc)}
+        return {
+            "ok": True,
+            "path": str(p),
+            "bytes_written": len(content),
+        }
+    except (ValueError, OSError) as exc:
+        return {
+            "ok": False,
+            "path": path,
+            "error": str(exc),
+        }
 
 
 @mcp.tool()
-def list_directory(path: str = ".") -> Dict[str, Any]:
+def list_directory(path: str = ".") -> dict[str, object]:
     """Return names and types of entries in *path*."""
     try:
         entries = fs_list_directory(path)
-        return {"path": path, "entries": entries}
-    except Exception as exc:
-        return {"error": str(exc)}
-
-
-# ---------------------------------------------------------------------------
-# GitHub helpers
-# ---------------------------------------------------------------------------
-
-# Use the GitHub client from github_utils module
-get_github_client = _get_github_client
+        return {
+            "ok": True,
+            "path": path,
+            "entries": entries,
+        }
+    except (ValueError, OSError) as exc:
+        return {
+            "ok": False,
+            "path": path,
+            "error": str(exc),
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -97,64 +118,39 @@ get_github_client = _get_github_client
 # ---------------------------------------------------------------------------
 
 @mcp.resource("github://repos/{owner}/{repo}")
-def get_repository(owner: str, repo: str) -> str:
+async def get_repository(owner: str, repo: str) -> str:
     """Return structured metadata for a GitHub repository."""
     try:
-        github = get_github_client()
-        repository = github.get_repo(f"{owner}/{repo}")
-
-        repo_data = {
-            "name": repository.name,
-            "full_name": repository.full_name,
-            "description": repository.description,
-            "private": repository.private,
-            "html_url": repository.html_url,
-            "clone_url": repository.clone_url,
-            "language": repository.language,
-            "stargazers_count": repository.stargazers_count,
-            "forks_count": repository.forks_count,
-            "open_issues_count": repository.open_issues_count,
-            "default_branch": repository.default_branch,
-            "created_at": repository.created_at.isoformat(),
-            "updated_at": repository.updated_at.isoformat(),
-            "pushed_at": repository.pushed_at.isoformat() if repository.pushed_at else None,
-        }
-
+        repo_data = await fetch_repository_metadata(owner, repo)
         return json.dumps(repo_data, indent=2)
-    except GithubException as exc:
-        return f"Error accessing repository: {exc.data.get('message', str(exc))}"
-    except Exception:
-        return "Unable to read the requested repository."
+    except ValueError:
+        return "GitHub data could not be retrieved."
 
 
 @mcp.resource("github://repos/{owner}/{repo}/issues")
-def get_repository_issues(owner: str, repo: str) -> str:
-    """Get repository issues."""
+async def get_repository_issues(owner: str, repo: str) -> str:
+    """Return a structured list of open GitHub issues."""
     try:
-        github = get_github_client()
-        repository = github.get_repo(f"{owner}/{repo}")
-        issues = repository.get_issues(state="open")
+        issues = await fetch_open_issues(owner, repo, limit=10)
 
         issues_data = []
-        for issue in issues[:10]:
+        for issue in issues:
             issues_data.append(
                 {
-                    "number": issue.number,
-                    "title": issue.title,
-                    "state": issue.state,
-                    "user": issue.user.login,
-                    "created_at": issue.created_at.isoformat(),
-                    "updated_at": issue.updated_at.isoformat(),
-                    "html_url": issue.html_url,
-                    "body": issue.body[:500] if issue.body else None,
+                    "number": issue["number"],
+                    "title": issue["title"],
+                    "state": issue["state"],
+                    "user": issue["user"],
+                    "created_at": issue["created_at"],
+                    "updated_at": issue["updated_at"],
+                    "html_url": issue["html_url"],
+                    "body": issue["body"][:500] if issue.get("body") else None,
                 }
             )
 
         return json.dumps(issues_data, indent=2)
-    except GithubException as exc:
-        return f"Error accessing issues: {exc.data.get('message', str(exc))}"
-    except Exception as exc:
-        return f"Error accessing issues: {str(exc)}"
+    except ValueError:
+        return "GitHub issues could not be retrieved."
 
 
 @mcp.tool()
@@ -162,7 +158,7 @@ def search_repositories(
     query: str,
     sort: str = "stars",
     order: str = "desc",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Search for repositories on GitHub."""
     try:
         github = get_github_client()
@@ -193,7 +189,7 @@ def search_repositories(
 
 
 @mcp.tool()
-def get_repository_info(owner: str, repo: str) -> Dict[str, Any]:
+def get_repository_info(owner: str, repo: str) -> dict[str, Any]:
     """Get detailed information about a repository."""
     try:
         github = get_github_client()
@@ -232,13 +228,13 @@ def list_repository_issues(
     repo: str,
     state: str = "open",
     labels: Optional[str] = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """List issues for a repository."""
     try:
         github = get_github_client()
         repository = github.get_repo(f"{owner}/{repo}")
 
-        kwargs: Dict[str, Any] = {"state": state}
+        kwargs: dict[str, Any] = {"state": state}
         if labels:
             kwargs["labels"] = labels.split(",")
 
@@ -272,7 +268,7 @@ def list_repository_issues(
 
 
 @mcp.tool()
-def get_issue_details(owner: str, repo: str, issue_number: int) -> Dict[str, Any]:
+def get_issue_details(owner: str, repo: str, issue_number: int) -> dict[str, Any]:
     """Get detailed information about a specific issue."""
     try:
         github = get_github_client()
@@ -302,7 +298,7 @@ def get_issue_details(owner: str, repo: str, issue_number: int) -> Dict[str, Any
 
 
 @mcp.tool()
-def list_pull_requests(owner: str, repo: str, state: str = "open") -> Dict[str, Any]:
+def list_pull_requests(owner: str, repo: str, state: str = "open") -> dict[str, Any]:
     """List pull requests for a repository."""
     try:
         github = get_github_client()
@@ -344,7 +340,7 @@ def list_pull_requests(owner: str, repo: str, state: str = "open") -> Dict[str, 
 
 
 @mcp.tool()
-def get_user_info(username: str) -> Dict[str, Any]:
+def get_user_info(username: str) -> dict[str, Any]:
     """Get information about a GitHub user."""
     try:
         github = get_github_client()
@@ -382,7 +378,7 @@ async def browser_open_page(
     url: str,
     wait_until: str = "domcontentloaded",
     timeout_ms: int = 15000,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Open *url* in a new headless Chromium tab and return the page ID."""
     try:
         pid = await new_page()
@@ -417,7 +413,7 @@ async def browser_open_page(
 
 
 @mcp.tool()
-async def browser_close_page(page_id: str) -> Dict[str, Any]:
+async def browser_close_page(page_id: str) -> dict[str, Any]:
     """Close a browser page by page ID."""
     try:
         await close_page(page_id)
@@ -427,7 +423,7 @@ async def browser_close_page(page_id: str) -> Dict[str, Any]:
 
 
 @mcp.tool()
-async def browser_get_page_info(page_id: str) -> Dict[str, Any]:
+async def browser_get_page_info(page_id: str) -> dict[str, Any]:
     """Get current information about a browser page."""
     try:
         page = await get_page(page_id)
@@ -447,7 +443,7 @@ async def browser_get_page_info(page_id: str) -> Dict[str, Any]:
 
 
 @mcp.tool()
-async def browser_health_check() -> Dict[str, Any]:
+async def browser_health_check() -> dict[str, Any]:
     """Quick health check to verify browser automation is working."""
     try:
         pid = await new_page()
@@ -470,7 +466,7 @@ async def browser_health_check() -> Dict[str, Any]:
 
 
 @mcp.tool()
-async def browser_click(page_id: str, selector: str, timeout_ms: int = 10000) -> Dict[str, Any]:
+async def browser_click(page_id: str, selector: str, timeout_ms: int = 10000) -> dict[str, Any]:
     """Click an element on the page."""
     try:
         page = await get_page(page_id)
@@ -491,7 +487,7 @@ async def browser_fill(
     text: str,
     timeout_ms: int = 10000,
     clear: bool = True,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Fill or type into an element."""
     try:
         page = await get_page(page_id)
@@ -510,7 +506,7 @@ async def browser_fill(
 
 
 @mcp.tool()
-async def browser_get_text(page_id: str, selector: str, timeout_ms: int = 10000) -> Dict[str, Any]:
+async def browser_get_text(page_id: str, selector: str, timeout_ms: int = 10000) -> dict[str, Any]:
     """Get text content from an element."""
     try:
         page = await get_page(page_id)
@@ -526,7 +522,7 @@ async def browser_get_text(page_id: str, selector: str, timeout_ms: int = 10000)
 
 
 @mcp.tool()
-async def browser_screenshot(page_id: str, full_page: bool = False) -> Dict[str, Any]:
+async def browser_screenshot(page_id: str, full_page: bool = False) -> dict[str, Any]:
     """Capture a screenshot from the current page."""
     try:
         data_url = await page_screenshot_base64(page_id, full_page=full_page)
@@ -556,12 +552,12 @@ def web_search(
     include_domains: Optional[str] = None,
     exclude_domains: Optional[str] = None,
     search_depth: str = "advanced",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Search the web using Tavily and return JSON results."""
     try:
         api_key = get_tavily_api_key()
         url = "https://api.tavily.com/search"
-        payload: Dict[str, Any] = {
+        payload: dict[str, Any] = {
             "api_key": api_key,
             "query": query,
             "max_results": max(1, min(max_results, 20)),
@@ -587,7 +583,7 @@ def web_search(
 # ---------------------------------------------------------------------------
 
 @mcp.prompt()
-def analyze_repository(owner: str, repo: str) -> List[Dict[str, str]]:
+def analyze_repository(owner: str, repo: str) -> list[base.Message]:
     """Return a reusable prompt for analyzing a GitHub repository."""
     repository = f"{owner}/{repo}"
     prompt_text = (
@@ -602,34 +598,28 @@ def analyze_repository(owner: str, repo: str) -> List[Dict[str, str]]:
         "6. Recommendations: suggestions for improvement or adoption considerations\n\n"
         "Use the available MCP tools to gather current information before writing the analysis."
     )
-    return [{"role": "user", "content": prompt_text}]
+    return [base.UserMessage(prompt_text)]
 
 
 @mcp.prompt()
-def debug_issue(owner: str, repo: str, issue_number: int) -> List[Dict[str, str]]:
+def debug_issue(owner: str, repo: str, issue_number: int) -> list[base.Message]:
     """Help debug and analyze a specific GitHub issue with context and suggestions."""
     return [
-        {
-            "role": "system",
-            "content": """You are a skilled software engineer and debugging specialist. You will help analyze a specific GitHub issue by:
-
-1. **Issue Analysis**: Understanding the problem description, reproduction steps, and expected vs actual behavior
-2. **Context Gathering**: Examining related code, recent changes, similar issues
-3. **Root Cause Investigation**: Identifying potential causes based on the information available
-4. **Solution Strategies**: Proposing debugging approaches and potential fixes
-5. **Action Plan**: Recommending concrete next steps for resolution
-
-Use the available MCP tools to gather comprehensive information about the issue, repository context, and any related discussions.""",
-        },
-        {
-            "role": "user",
-            "content": f"I need help debugging issue #{issue_number} in {owner}/{repo}. Please analyze the issue thoroughly, gather relevant context from the repository, and provide debugging guidance and potential solutions.",
-        },
+        base.UserMessage(
+            "You are a skilled software engineer and debugging specialist. "
+            "Analyze the issue by understanding the problem description, gathering repository context, "
+            "investigating likely root causes, proposing debugging strategies, and recommending concrete next steps."
+        ),
+        base.UserMessage(
+            f"I need help debugging issue #{issue_number} in {owner}/{repo}. "
+            "Please analyze the issue thoroughly, gather relevant context from the repository, "
+            "and provide debugging guidance and potential solutions."
+        ),
     ]
 
 
 @mcp.prompt()
-def code_review_checklist(language: str = "general") -> List[Dict[str, str]]:
+def code_review_checklist(language: str = "general") -> list[base.Message]:
     """Return a reusable prompt for requesting a code review checklist."""
     target_language = language.strip() or "general"
     prompt_text = (
@@ -644,116 +634,59 @@ def code_review_checklist(language: str = "general") -> List[Dict[str, str]]:
         f"6. Language-specific best practices for {target_language}\n\n"
         "Make the checklist detailed enough for real reviews, but practical for daily team use."
     )
-    return [{"role": "user", "content": prompt_text}]
+    return [base.UserMessage(prompt_text)]
 
 
 @mcp.prompt()
-def research_topic(topic: str, focus_area: str = "general") -> List[Dict[str, str]]:
+def research_topic(topic: str, focus_area: str = "general") -> list[base.Message]:
     """Research a technical topic using web search and provide comprehensive analysis."""
     return [
-        {
-            "role": "system",
-            "content": """You are a technical researcher and analyst. You will research a given topic thoroughly using web search capabilities and provide:
-
-1. **Current State**: Latest developments, trends, and industry adoption
-2. **Technical Details**: How it works, key concepts, implementation approaches
-3. **Ecosystem**: Related tools, frameworks, libraries, and platforms
-4. **Use Cases**: Practical applications, success stories, case studies
-5. **Advantages & Challenges**: Benefits, limitations, common pitfalls
-6. **Future Outlook**: Emerging trends, roadmap, predictions
-7. **Getting Started**: Resources for learning, best practices, recommended tools
-
-Use web search extensively to gather the most current and comprehensive information. Cite sources and provide links where relevant.""",
-        },
-        {
-            "role": "user",
-            "content": f"Research the topic '{topic}' with focus on '{focus_area}'. Provide a comprehensive technical analysis using current web sources. Include practical insights, current trends, and actionable recommendations.",
-        },
+        base.UserMessage(
+            "You are a technical researcher and analyst. Research the requested topic thoroughly using web search. "
+            "Cover the current state, technical details, ecosystem, use cases, advantages, challenges, future outlook, "
+            "and practical getting-started guidance."
+        ),
+        base.UserMessage(
+            f"Research the topic '{topic}' with focus on '{focus_area}'. "
+            "Provide a comprehensive technical analysis using current web sources. "
+            "Include practical insights, current trends, and actionable recommendations."
+        ),
     ]
 
 
 @mcp.prompt()
-def file_analysis(file_path: str) -> List[Dict[str, str]]:
+def file_analysis(file_path: str) -> list[base.Message]:
     """Analyze a source code file for quality, patterns, and improvement suggestions."""
     return [
-        {
-            "role": "system",
-            "content": """You are an expert code analyst and software architect. You will analyze a source code file to provide insights on:
-
-**Code Structure & Organization**:
-- Overall architecture and design patterns
-- Module/class organization
-- Function/method design and cohesion
-
-**Code Quality Assessment**:
-- Readability and maintainability
-- Adherence to best practices
-- Documentation quality
-
-**Potential Issues**:
-- Code smells and anti-patterns
-- Performance concerns
-- Security vulnerabilities
-
-**Improvement Recommendations**:
-- Refactoring opportunities
-- Design pattern applications
-- Testing strategies
-
-**Dependencies & Coupling**:
-- External dependencies analysis
-- Coupling and cohesion assessment
-- Interface design evaluation
-
-Use the file reading capabilities to examine the code and provide specific, actionable feedback.""",
-        },
-        {
-            "role": "user",
-            "content": f"Please analyze the source code file at '{file_path}'. Provide a comprehensive code quality assessment with specific improvement recommendations.",
-        },
+        base.UserMessage(
+            "You are an expert code analyst and software architect. Analyze the target source file for structure, "
+            "organization, code quality, potential issues, dependencies, coupling, and practical improvement opportunities."
+        ),
+        base.UserMessage(
+            f"Please analyze the source code file at '{file_path}'. "
+            "Provide a comprehensive code quality assessment with specific improvement recommendations."
+        ),
     ]
 
 
 @mcp.prompt()
-def web_automation_plan(task_description: str, target_url: str = "") -> List[Dict[str, str]]:
+def web_automation_plan(task_description: str, target_url: str = "") -> list[base.Message]:
     """Create a step-by-step plan for web automation tasks using browser tools."""
+    task = (
+        f"Create a detailed web automation plan for: '{task_description}'"
+        + (f" on the website: {target_url}" if target_url else "")
+        + ". Provide step-by-step instructions using the available browser automation tools."
+    )
     return [
-        {
-            "role": "system",
-            "content": """You are a web automation specialist and QA engineer. You will create detailed automation plans for web-based tasks using browser automation tools. Your plan should include:
-
-**Strategy & Approach**:
-- Task breakdown and workflow design
-- Risk assessment and error handling
-- Data validation and verification steps
-
-**Technical Implementation**:
-- Step-by-step browser automation sequence
-- CSS selectors and element identification
-- Wait conditions and timing considerations
-
-**Quality Assurance**:
-- Verification points and assertions
-- Error scenarios and recovery actions
-- Data integrity checks
-
-**Best Practices**:
-- Robust selector strategies
-- Performance optimization
-- Maintainability considerations
-
-Use the available browser automation tools (open_page, click, fill, get_text, screenshot) to implement the solution.""",
-        },
-        {
-            "role": "user",
-            "content": f"Create a detailed web automation plan for: '{task_description}'"
-            + (f" on the website: {target_url}" if target_url else "")
-            + ". Provide step-by-step instructions using the available browser automation tools.",
-        },
+        base.UserMessage(
+            "You are a web automation specialist and QA engineer. Create a robust automation plan that covers task "
+            "breakdown, selector strategy, wait conditions, verification steps, error handling, and maintainability."
+        ),
+        base.UserMessage(task),
     ]
 
 
-def main():
+def main() -> None:
     """Main entry point for the MCP server."""
     mcp.run()
 
