@@ -1,3 +1,12 @@
+"""Simplified HTTP-to-stdio bridge used in Chapter 3.
+
+This example exists to make Streamable HTTP request forwarding and
+response-scoped SSE visible without rewriting the underlying MCP server.
+It is not a full Streamable HTTP implementation: it omits GET-opened
+SSE streams, stateful sessions, MCP-Protocol-Version enforcement, and
+HTTP authorization.
+"""
+
 from __future__ import annotations
 
 import json
@@ -7,18 +16,19 @@ import subprocess
 import sys
 import threading
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SERVER_ENTRY = REPO_ROOT / "src" / "build_an_mcp_server" / "server.py"
 
 app = FastAPI(title="MCP HTTP Adapter")
 
 
 class StdioBridge:
+    """Forward JSON-RPC messages between HTTP and a stdio MCP server."""
+
     def __init__(self, cmd: list[str]) -> None:
         self.proc = subprocess.Popen(
             cmd,
@@ -27,6 +37,7 @@ class StdioBridge:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            encoding="utf-8",
             bufsize=1,
             env=os.environ.copy(),
         )
@@ -53,7 +64,7 @@ class StdioBridge:
         threading.Thread(target=_stdout, daemon=True).start()
         threading.Thread(target=_stderr, daemon=True).start()
 
-    def send(self, obj: Dict[str, Any]) -> None:
+    def send(self, obj: dict[str, Any]) -> None:
         if not self.proc.stdin:
             raise RuntimeError("server stdin is closed")
 
@@ -61,7 +72,7 @@ class StdioBridge:
         self.proc.stdin.write(msg + "\n")
         self.proc.stdin.flush()
 
-    def recv_matching(self, target_id: Any, timeout: float = 30.0) -> Dict[str, Any]:
+    def recv_matching(self, target_id: Any, timeout: float = 30.0) -> dict[str, Any]:
         with self._pending_lock:
             bucket = self._pending.get(target_id)
             if bucket:
@@ -103,23 +114,49 @@ class StdioBridge:
             self.proc.kill()
         except Exception as e:
             print(f"[adapter] error waiting for server exit: {e}", file=sys.stderr)
+            self.proc.kill()
 
 
-# Run server as module to avoid import issues
 bridge = StdioBridge([sys.executable, "-m", "build_an_mcp_server.server"])
 
 
-def _accepts_sse(request: Request) -> bool:
+@app.on_event("shutdown")
+def _shutdown_bridge() -> None:
+    bridge.close()
+
+
+def _accept_values(request: Request) -> set[str]:
     accept = request.headers.get("accept", "")
-    return "text/event-stream" in accept.lower()
+    return {
+        part.split(";", 1)[0].strip().lower()
+        for part in accept.split(",")
+        if part.strip()
+    }
 
 
-def _sse_json(obj: Dict[str, Any]) -> str:
+def _require_standard_accept(request: Request) -> None:
+    accepted = _accept_values(request)
+    required = {"application/json", "text/event-stream"}
+    if not required.issubset(accepted):
+        raise HTTPException(
+            status_code=406,
+            detail="Accept must include application/json and text/event-stream",
+        )
+
+
+def _prefer_stream(request: Request) -> bool:
+    """Adapter-specific switch used only by this teaching bridge."""
+    return request.headers.get("x-prefer-stream", "").lower() == "true"
+
+
+def _sse_json(obj: dict[str, Any]) -> str:
     return "data: " + json.dumps(obj, separators=(",", ":")) + "\n\n"
 
 
 @app.post("/mcp")
 async def mcp(request: Request) -> Response:
+    _require_standard_accept(request)
+
     try:
         body = await request.json()
     except Exception:
@@ -135,7 +172,7 @@ async def mcp(request: Request) -> Response:
     req_id = body["id"]
     bridge.send(body)
 
-    if not _accepts_sse(request):
+    if not _prefer_stream(request):
         try:
             reply = bridge.recv_matching(req_id, timeout=60.0)
         except TimeoutError:
