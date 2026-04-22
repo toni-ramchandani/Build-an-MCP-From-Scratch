@@ -1,3 +1,9 @@
+"""Educational host-side stdio harness used in Chapter 3.
+
+This example keeps one request in flight at a time so the message flow stays
+readable on the page. It is not a general-purpose concurrent MCP client.
+"""
+
 from __future__ import annotations
 
 import argparse
@@ -11,8 +17,6 @@ import uuid
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SERVER_ENTRY = REPO_ROOT / "src" / "build_an_mcp_server" / "server.py"
-
 PROTOCOL_VERSION = os.environ.get("MCP_PROTOCOL_VERSION", "2025-11-25")
 
 
@@ -34,6 +38,7 @@ class MCPHost:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            encoding="utf-8",
             bufsize=1,
             env=env or os.environ.copy(),
         )
@@ -67,6 +72,12 @@ class MCPHost:
         self.proc.stdin.flush()
 
     def recv(self, timeout: float | None = 15.0) -> dict:
+        """Read the next valid protocol message.
+
+        This educational harness is sequential. It assumes the startup flow and
+        example tool call do not interleave unrelated server-originated messages.
+        A concurrent client should route replies by response id.
+        """
         while True:
             try:
                 raw = self._outq.get(timeout=timeout)
@@ -74,12 +85,18 @@ class MCPHost:
                 raise TimeoutError("timed out waiting for server response") from e
 
             try:
-                return json.loads(raw)
+                msg = json.loads(raw)
             except json.JSONDecodeError as e:
                 print(
                     f"[host] ignoring malformed stdout line: {raw!r} ({e})",
                     file=sys.stderr,
                 )
+                continue
+
+            if isinstance(msg, dict):
+                return msg
+
+            print(f"[host] ignoring non-object stdout line: {raw!r}", file=sys.stderr)
 
     def close(self) -> None:
         if self.proc.stdin:
@@ -168,7 +185,7 @@ def tools_call(host: MCPHost, name: str, arguments: dict) -> dict:
     return require_success(host.recv(timeout=30.0), "tools/call")
 
 
-def main() -> None:
+def main() -> int:
     try:
         from dotenv import load_dotenv
 
@@ -180,7 +197,6 @@ def main() -> None:
     parser.add_argument("--call", default=None, help="Tool name to call")
     parser.add_argument("--args", default=None, help="JSON string of tool args")
     parser.add_argument("--python", default=sys.executable, help="Python to run server")
-    parser.add_argument("--server", default=str(SERVER_ENTRY), help="Path to server.py")
     args = parser.parse_args()
 
     env = os.environ.copy()
@@ -189,8 +205,11 @@ def main() -> None:
             "[warn] GITHUB_TOKEN not set; GitHub-backed server tools may fail.\n"
         )
 
-    # Run server as module to avoid import issues
-    host = MCPHost([args.python, "-m", "build_an_mcp_server.server"], cwd=REPO_ROOT, env=env)
+    host = MCPHost(
+        [args.python, "-m", "build_an_mcp_server.server"],
+        cwd=REPO_ROOT,
+        env=env,
+    )
     try:
         print(">> initialize")
         init_reply = initialize(host)
@@ -210,7 +229,7 @@ def main() -> None:
                     tool_args = json.loads(args.args)
                 except json.JSONDecodeError as e:
                     print(f"ERROR: --args must be valid JSON: {e}", file=sys.stderr)
-                    sys.exit(2)
+                    return 2
 
             print(f"\n>> tools/call {args.call} {tool_args}")
             call_reply = tools_call(host, args.call, tool_args)
@@ -218,15 +237,19 @@ def main() -> None:
         else:
             print("\n(no --call provided; done.)")
 
+        return 0
+    except RuntimeError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 1
     except TimeoutError:
         print(
             "ERROR: timed out waiting for server response (see stderr logs above).",
             file=sys.stderr,
         )
-        sys.exit(1)
+        return 1
     finally:
         host.close()
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
