@@ -1,283 +1,162 @@
-# MCP Server Examples
+# Examples
 
-This directory contains practical examples demonstrating different ways to use and interact with the MCP server.
+This directory contains the example programs used in the early chapters of the book.
 
-## 📋 Examples Overview
+They are intentionally small and concrete. They are not a client SDK and they are not the production server implementation used later in the book. Their job is to make MCP transport mechanics, message flow, and schema-driven validation easy to inspect.
 
-### 1. `stdio_host.py` - Complete MCP Client
-**Purpose:** Demonstrates the full MCP protocol handshake and tool calling via stdio transport.
+## Directory layout
 
-**What it does:**
-- Shows proper initialization sequence: `initialize` → `initialized` → `tools/list` → `tools/call`
-- Lists all available tools from the server
-- Optionally calls a specific tool with arguments
-- Handles environment variables and error cases
+- `ch02/minimal_add_server.py` is the smallest possible FastMCP example from Chapter 2.
+- `ch03/stdio_host.py` is a host-side stdio harness.
+- `ch03/http_adapter.py` is a teaching HTTP-to-stdio bridge.
+- `ch03/transport.py` defines the small transport abstraction used by the Chapter 3 examples.
+- `ch03/validate_and_call.py` validates tool arguments locally before calling a tool.
 
-**Usage:**
+## Install the example dependencies
+
+Install the project first:
+
 ```bash
-# List all available tools
-python examples/stdio_host.py
-
-# Call a specific tool
-python examples/stdio_host.py --call get_user_info --args '{"username":"octocat"}'
-```
-
-**Learn from this:**
-- How to implement a proper MCP client
-- Required JSON-RPC message format
-- Correct handshake sequence
-- Tool discovery and invocation
-
----
-
-### 2. `http_adapter.py` - HTTP/SSE Bridge
-**Purpose:** Wraps the stdio MCP server and exposes it via HTTP endpoints.
-
-**What it does:**
-- Runs the MCP server as a subprocess
-- Exposes two HTTP endpoints:
-  - `POST /mcp` - Standard JSON-RPC over HTTP
-  - `POST /mcp/stream` - Server-Sent Events (SSE) streaming
-- Handles request/response matching
-- Enables concurrent HTTP clients
-
-**Usage:**
-```bash
-# Install dependencies first
-pip install -e ".[examples]"
-
-# Run the HTTP adapter
-python examples/http_adapter.py
-# Server starts on http://127.0.0.1:8000
-```
-
-**Test with curl:**
-```bash
-# List tools
-curl -X POST http://localhost:8000/mcp \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
-
-# Call a tool
-curl -X POST http://localhost:8000/mcp \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_directory","arguments":{"path":"."}}}'
-```
-
-**Learn from this:**
-- How to bridge stdio to HTTP
-- Server-Sent Events implementation
-- Subprocess management
-- Request multiplexing
-
----
-
-### 3. `transport.py` - Abstract Transport Layer
-**Purpose:** Demonstrates clean abstraction over different transport mechanisms.
-
-**What it does:**
-- Defines abstract `Transport` base class
-- Implements `StdioTransport` for subprocess communication
-- Implements `HttpTransport` for REST/HTTP communication
-- Provides uniform `Message` interface
-
-**Usage:**
-```python
-from transport import StdioTransport, HttpTransport, Message
-
-# Use stdio transport
-transport = StdioTransport(["python", "server.py"])
-transport.send(Message({"jsonrpc": "2.0", "method": "initialize", ...}))
-response = transport.recv()
-
-# Or use HTTP transport
-transport = HttpTransport("http://localhost:8000/mcp")
-transport.send(Message({"jsonrpc": "2.0", "method": "tools/list", ...}))
-response = transport.recv()
-```
-
-**Learn from this:**
-- Design patterns for transport abstraction
-- How to write swappable implementations
-- Clean separation of concerns
-
----
-
-### 4. `validate_and_call.py` - JSON Schema Validation
-**Purpose:** Pre-validates tool arguments using JSON Schema before calling tools.
-
-**What it does:**
-- Fetches tool schemas from the server
-- Validates arguments against `inputSchema` using `jsonschema` library
-- Provides detailed validation error messages
-- Repairs common JSON formatting issues (smart quotes)
-- Only calls the tool if validation passes
-
-**Usage:**
-```bash
-# Install dependencies first
-pip install -e ".[examples]"
-
-# Call tool with validated args
-python examples/validate_and_call.py --tool get_user_info --args '{"username":"octocat"}'
-
-# Call with args from file
-python examples/validate_and_call.py --tool list_directory --args-file args.json
-
-# Example args.json:
-# {"path": "/home/user"}
-```
-
-**Learn from this:**
-- JSON Schema validation in practice
-- Type safety before execution
-- Better error reporting
-- Input sanitization
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-```bash
-# Core server dependencies (required)
 pip install -e .
+```
 
-# Example-specific dependencies (optional)
+Then install the extra dependencies used by the Chapter 3 examples:
+
+```bash
 pip install -e ".[examples]"
 ```
 
-### Quick Test
+If you use a local `.env` file for tokens or configuration, create it in the repository root before running the examples.
+
+## `ch02/minimal_add_server.py`
+
+This is the smallest FastMCP server in the repo. It exists to support the first server examples in Chapter 2.
+
+Run it with:
+
 ```bash
-# 1. Make sure your .env file is configured
-cp .env.example .env
-# Edit .env with your GITHUB_TOKEN and TAVILY_API_KEY
-
-# 2. Test the stdio client
-python examples/stdio_host.py
-
-# 3. Call a tool
-python examples/stdio_host.py --call list_directory --args '{"path":"."}'
+python examples/ch02/minimal_add_server.py
 ```
 
-## 📦 Dependencies
+## `ch03/stdio_host.py`
 
-### Core (always installed)
-- `mcp` - MCP protocol implementation
-- `pygithub` - GitHub API
-- `python-dotenv` - Environment variables
-- `playwright` - Browser automation
-- `requests` - HTTP client
+`stdio_host.py` is a host-side harness for local subprocess communication.
 
-### Examples (install with `pip install -e ".[examples]"`)
-- `fastapi` - Web framework (for http_adapter.py)
-- `uvicorn` - ASGI server (for http_adapter.py)
-- `jsonschema` - Schema validation (for validate_and_call.py)
+It launches the MCP server as a child process, sends JSON-RPC messages over stdio, and prints the replies so you can inspect the lifecycle and tool flow directly.
 
-## 🔍 Testing Examples
+What it demonstrates:
 
-### Test stdio_host.py
+- `initialize`
+- `notifications/initialized`
+- `tools/list`
+- optional `tools/call`
+- strict separation between protocol traffic on `stdout` and diagnostics on `stderr`
+
+Example usage:
+
 ```bash
-python examples/stdio_host.py
-# Should show: initialize response, tools list
+python examples/ch03/stdio_host.py
+python examples/ch03/stdio_host.py --call list_directory --args '{"path":"."}'
 ```
 
-### Test http_adapter.py
-```bash
-# Terminal 1: Start the HTTP server
-python examples/http_adapter.py
+## `ch03/http_adapter.py`
 
-# Terminal 2: Test with curl
-curl -X POST http://localhost:8000/mcp \
+`http_adapter.py` is a small HTTP-to-stdio bridge.
+
+It keeps the existing MCP server running over stdio, but exposes a single HTTP endpoint so the same JSON-RPC messages can be sent from environments that cannot spawn a local subprocess directly.
+
+Important scope note:
+
+- this file is a teaching bridge
+- it is not a full native Streamable HTTP server
+- it implements one `POST /mcp` endpoint
+- it can return either a normal JSON response or a response-scoped SSE stream
+- the SSE branch is selected with the adapter-specific request header `X-Prefer-Stream: true`
+
+Start the adapter:
+
+```bash
+python examples/ch03/http_adapter.py
+```
+
+JSON response example:
+
+```bash
+curl -X POST http://127.0.0.1:8000/mcp \
   -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
 ```
 
-### Test validate_and_call.py
+Response-scoped SSE example:
+
 ```bash
-# Valid call
-python examples/validate_and_call.py --tool get_user_info --args '{"username":"octocat"}'
-
-# Invalid args (will show validation errors)
-python examples/validate_and_call.py --tool get_user_info --args '{"invalid":"field"}'
+curl -N -X POST http://127.0.0.1:8000/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "X-Prefer-Stream: true" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
 ```
 
-## 💡 Common Patterns
+## `ch03/transport.py`
 
-### 1. Initialize Handshake
-All MCP clients must follow this sequence:
-```python
-# 1. Send initialize request
-send({"jsonrpc":"2.0", "id":"init-1", "method":"initialize", "params":{...}})
+`transport.py` defines a very small transport abstraction used by the Chapter 3 examples.
 
-# 2. Wait for initialize response
-response = recv()
+It contains:
 
-# 3. Send initialized notification
-send({"jsonrpc":"2.0", "method":"notifications/initialized", "params":{...}})
+- a `Transport` interface
+- `StdioTransport` for subprocess communication
+- `HttpTransport` for the JSON-response branch of the HTTP example
 
-# 4. Now you can use tools/resources/prompts
-```
+This file is not a transport framework. It exists so later host-side examples can switch between stdio and HTTP without rewriting the surrounding logic.
 
-### 2. Calling Tools
-```python
-send({
-    "jsonrpc": "2.0",
-    "id": "call-123",
-    "method": "tools/call",
-    "params": {
-        "name": "tool_name",
-        "arguments": {"arg1": "value1"}
-    }
-})
-response = recv()
-```
+One limitation is explicit in the code: `HttpTransport` handles only the JSON-response branch. If the server returns `text/event-stream`, the example raises `NotImplementedError` rather than pretending SSE is supported.
 
-### 3. Error Handling
-```python
-response = recv()
-if "error" in response:
-    print(f"Error: {response['error']}")
-elif "result" in response:
-    print(f"Success: {response['result']}")
-```
+## `ch03/validate_and_call.py`
 
-## 🐛 Troubleshooting
+`validate_and_call.py` is a host-side validator built on top of `StdioTransport`.
 
-### "GITHUB_TOKEN not set" warning
+It initializes a session, calls `tools/list`, finds the selected tool definition, validates input arguments locally against `inputSchema`, calls the tool only when validation succeeds, and optionally validates returned `structuredContent` against `outputSchema`.
+
+Example usage:
+
 ```bash
-# Make sure .env file exists and has your token
-cp .env.example .env
-# Edit .env and add: GITHUB_TOKEN=your_token_here
+python examples/ch03/validate_and_call.py --tool list_directory --args-file args.json
 ```
 
-### "Timeout waiting for server"
-- Server may have crashed; check stderr output
-- Server may still be starting; increase timeout
-- Check if server.py path is correct
+On Windows PowerShell, use `--args-file` rather than inline JSON when possible.
 
-### "Module not found: fastapi"
+## Smoke tests
+
+### stdio harness
+
 ```bash
-# Install example dependencies
-pip install -e ".[examples]"
+python examples/ch03/stdio_host.py
 ```
 
-### HTTP adapter port already in use
+A successful run should initialize the session and print the result of `tools/list`.
+
+### HTTP bridge
+
+In one terminal:
+
 ```bash
-# Edit http_adapter.py and change the port:
-uvicorn.run(app, host="127.0.0.1", port=8001)  # Changed from 8000
+python examples/ch03/http_adapter.py
 ```
 
-## 🎯 Next Steps
+In another terminal:
 
-1. **Understand the handshake:** Run `stdio_host.py` and observe the JSON-RPC messages
-2. **Try HTTP transport:** Run `http_adapter.py` and test with curl
-3. **Add validation:** Use `validate_and_call.py` to see schema validation
-4. **Build your own client:** Use these examples as templates
+```bash
+curl -X POST http://127.0.0.1:8000/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+```
 
-## 📚 Resources
+### Schema validator
 
-- [MCP Specification](https://spec.modelcontextprotocol.io/)
-- [JSON-RPC 2.0](https://www.jsonrpc.org/specification)
-- [JSON Schema](https://json-schema.org/)
-- [FastAPI Documentation](https://fastapi.tiangolo.com/)
+```bash
+python examples/ch03/validate_and_call.py --tool list_directory --args-file args.json
+```
+
+The validator should fail locally when the supplied JSON object does not match the tool schema.
