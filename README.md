@@ -1,280 +1,172 @@
-# Build an MCP Server
+# Build an MCP from Scratch
 
-An Model Context Protocol (MCP) server implementation that provides powerful capabilities for AI assistants including filesystem operations, GitHub integration, browser automation, and web search.
+This repository accompanies the book *Build an MCP from Scratch* and contains the Python code used across the early chapters.
 
-## Features
+The project has two distinct roles:
 
-### 🗂️ Filesystem Operations
-- **Read files**: Safe file reading with configurable allowed directories
-- **Write files**: Create and modify files with overwrite protection
-- **List directories**: Browse directory contents
-- **Path validation**: Prevent directory traversal attacks
+- `src/build_an_mcp_server/` contains the real MCP server used as the book’s running example.
+- `examples/` contains small teaching utilities that make protocol flow, transport behavior, and schema validation easier to inspect.
 
-### 🐙 GitHub Integration
-- **Repository info**: Get detailed repository metadata
-- **Issues management**: List, search, and analyze issues
-- **Pull requests**: Access PR information and status
-- **User profiles**: Retrieve GitHub user data
-- **Repository search**: Find repositories with advanced filters
+The server is intentionally broader than a “hello world” example. It exposes tools, resources, and prompts around four domains:
 
-### 🌐 Browser Automation
-- **Page navigation**: Open and interact with web pages
-- **Element interaction**: Click, fill forms, extract text
-- **Screenshots**: Capture page screenshots (full or viewport)
-- **Health monitoring**: Built-in health checks
-- **Session management**: Multiple concurrent browser sessions
+- local filesystem access within an explicit allow-list
+- GitHub repository and issue workflows
+- browser automation with Playwright
+- live web search with Tavily
 
-### 🔍 Web Search
-- **Tavily integration**: Advanced web search capabilities
-- **Customizable results**: Control depth, domains, and result count
-- **Structured output**: JSON-formatted search results
+The examples are intentionally narrower. They are not a general-purpose client SDK, and they are not meant to replace the official MCP Python SDK. Their purpose is to make the wire protocol and host-side behavior visible on the page.
 
-### 🤖 AI-Ready Prompts
-Pre-built prompts for common tasks:
-- Repository analysis
-- Issue debugging
-- Code review checklists
-- Topic research
-- File analysis
-- Web automation planning
+## Repository layout
+
+```text
+Build-an-MCP-From-Scratch/
+├── pyproject.toml
+├── README.md
+├── .env.example
+├── src/
+│   └── build_an_mcp_server/
+│       ├── __init__.py
+│       ├── server.py
+│       ├── fs_utils.py
+│       ├── github_utils.py
+│       └── browser_utils.py
+└── examples/
+    ├── README.md
+    ├── ch02/
+    │   └── minimal_add_server.py
+    └── ch03/
+        ├── stdio_host.py
+        ├── http_adapter.py
+        ├── transport.py
+        └── validate_and_call.py
+```
+
+## Prerequisites
+
+- Python 3.10 or later
+- `pip` or `uv`
+- Playwright browser binaries for the browser tools
 
 ## Installation
 
-### Prerequisites
-- Python 3.10 or higher
-- pip
+Install the project in editable mode:
 
-### Quick Start
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/toni-ramchandani/Build-an-MCP-From-Scratch.git
-   cd Build-an-MCP-From-Scratch
-   ```
-
-2. **Install dependencies**
-   
-   ```bash
-   pip install -e .
-   ```
-
-3. **Install Playwright browsers**
-   ```bash
-   playwright install chromium
-   ```
-
-4. **Configure environment**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your API keys
-   ```
-
-5. **Run the server**
-   ```bash
-   python -m build_an_mcp_server.server
-   ```
-
-## Configuration
-
-Create a `.env` file in the project root with the following variables:
-
-```env
-# Required for GitHub features
-GITHUB_TOKEN=your_github_token_here
-
-# Required for web search
-TAVILY_API_KEY=your_tavily_api_key_here
-
-# Optional: Filesystem access control
-# Windows (semicolon-separated)
-FS_ALLOWED_DIRS=C:\allowed\path1;C:\allowed\path2
-
-# Linux/Mac (colon-separated)
-FS_ALLOWED_DIRS=/home/user/allowed:/home/user/projects
-
-# Optional: Logging
-LOG_LEVEL=INFO
-```
-
-### Getting API Keys
-
-- **GitHub Token**: [https://github.com/settings/tokens](https://github.com/settings/tokens)
-  - Required scopes: `repo`, `read:user`
-  
-- **Tavily API Key**: [https://tavily.com](https://tavily.com)
-  - Sign up and get your API key from the dashboard
-
-## Usage Examples
-
-### Filesystem Operations
-
-```python
-# Read a file
-read_file(path="/path/to/file.txt")
-
-# Write a file
-write_file(
-    path="/path/to/output.txt",
-    content="Hello, MCP!",
-    overwrite=True
-)
-
-# List directory
-list_directory(path="/path/to/directory")
-```
-
-### GitHub Operations
-
-```python
-# Get repository info
-get_repository_info(owner="microsoft", repo="vscode")
-
-# List issues
-list_repository_issues(
-    owner="microsoft",
-    repo="vscode",
-    state="open",
-    labels="bug"
-)
-
-# Search repositories
-search_repositories(
-    query="MCP server language:Python",
-    sort="stars",
-    order="desc"
-)
-```
-
-### Browser Automation
-
-```python
-# Open a page
-browser_open_page(
-    url="https://example.com",
-    wait_until="domcontentloaded"
-)
-
-# Fill a form
-browser_fill(
-    page_id="page_1",
-    selector="#email",
-    text="user@example.com"
-)
-
-# Take screenshot
-browser_screenshot(page_id="page_1", full_page=True)
-
-# Close page
-browser_close_page(page_id="page_1")
-```
-
-### Web Search
-
-```python
-# Search the web
-web_search(
-    query="MCP protocol documentation",
-    max_results=10,
-    search_depth="advanced"
-)
-```
-
-## Project Structure
-
-```
-Build-an-MCP-From-Scratch/
-├── pyproject.toml          # Project configuration and dependencies
-├── README.md               # This file
-├── .env.example            # Environment variables template
-├── .gitignore              # Git ignore rules
-├── src/
-│   └── build_an_mcp_server/
-│       ├── __init__.py         # Package initialization
-│       ├── server.py           # Main MCP server implementation
-│       ├── fs_utils.py         # Filesystem utilities
-│       ├── github_utils.py     # GitHub API helpers
-│       └── browser_utils.py    # Browser automation helpers
-└── examples/               # Usage examples
-    ├── README.md           # Examples overview
-    └── http_transport/     # HTTP/SSE transport example
-        ├── README.md
-        └── server_http.py
-```
-
-## Security Considerations
-
-### Filesystem Access
-- **Sandboxing**: Only directories listed in `FS_ALLOWED_DIRS` are accessible
-- **Path validation**: Prevents directory traversal attacks
-- **Size limits**: File reads are capped at 100KB by default
-
-### API Keys
-- **Environment variables**: Store sensitive credentials in `.env`
-- **Never commit**: Add `.env` to `.gitignore`
-- **Minimal permissions**: Use tokens with least required privileges
-
-### Browser Automation
-- **Headless mode**: Runs in headless Chromium by default
-- **Timeouts**: Prevents hanging operations
-- **Resource cleanup**: Automatic cleanup of browser resources
-
-## Troubleshooting
-
-### Playwright Installation Issues
 ```bash
-# Reinstall Playwright browsers
-playwright install --force chromium
-```
-
-### Import Errors
-```bash
-# Ensure package is installed in editable mode
 pip install -e .
 ```
 
-### API Rate Limits
-- GitHub: 5000 requests/hour (authenticated)
-- Tavily: Check your plan limits
+Install the optional packages used by the Chapter 3 examples:
 
-## Testing with MCP Inspector
-
-Use the official MCP Inspector to test your server:
-
-**With stdio transport (default):**
 ```bash
-npx @modelcontextprotocol/inspector python -m build_an_mcp_server.server
+pip install -e ".[examples]"
 ```
 
-**With HTTP transport (see examples):**
-```bash
-# Run the HTTP server first
-python examples/http_transport/server_http.py
+Install the browser runtime used by the browser tools:
 
-# Then connect inspector
-npx @modelcontextprotocol/inspector http://localhost:3000/sse
+```bash
+playwright install chromium
 ```
 
-This will open a web interface where you can:
-- Browse and test all available tools
-- View resources and prompts
-- Debug server responses
+## Configuration
 
-## Examples
+Copy the environment template and edit it for your machine:
 
-Check the [examples/](examples/) directory for practical demonstrations:
-- **HTTP Transport**: Run the server as a web service with SSE transport
-- More examples coming soon!
+```bash
+cp .env.example .env
+```
 
-Each example includes its own README with detailed instructions.
+The main settings are:
 
-## Acknowledgments
+- `FS_ALLOWED_DIRS`: one or more absolute directories the filesystem tools are allowed to access
+- `GITHUB_TOKEN`: required for GitHub-backed tools and resources
+- `TAVILY_API_KEY`: required for the `web_search` tool
 
-- Built with [Official Python MCP SDK](https://github.com/modelcontextprotocol/python-sdk)
-- Uses [PyGithub](https://github.com/PyGithub/PyGithub) for GitHub API
-- Uses [Playwright](https://playwright.dev/python/) for browser automation
-- Uses [Tavily](https://tavily.com) for web search
+`FS_ALLOWED_DIRS` is not optional for the filesystem helpers in this server. The helper module fails closed if the variable is missing or empty.
 
-## Support
+Examples:
 
-- 🐛 [Issue Tracker](https://github.com/toni-ramchandani/Build-an-MCP-From-Scratch/issues)
-- 💬 [Discussions](https://github.com/toni-ramchandani/Build-an-MCP-From-Scratch/discussions)
+```env
+# Windows
+FS_ALLOWED_DIRS=C:\work\repo;C:\work\scratch
+
+# macOS / Linux
+FS_ALLOWED_DIRS=/home/user/work/repo:/home/user/scratch
+
+GITHUB_TOKEN=your_token_here
+TAVILY_API_KEY=your_api_key_here
+LOG_LEVEL=INFO
+```
+
+## Running the server
+
+Run the real server package directly:
+
+```bash
+python -m build_an_mcp_server.server
+```
+
+You can also use the console script installed from `pyproject.toml`:
+
+```bash
+build-an-mcp-server
+```
+
+The default runtime path is stdio, which is the simplest way to connect a local host to the server.
+
+## Running the examples
+
+The examples in `examples/ch03/` are chapter support programs.
+
+List tools and inspect the stdio handshake:
+
+```bash
+python examples/ch03/stdio_host.py
+```
+
+Call one tool through the stdio harness:
+
+```bash
+python examples/ch03/stdio_host.py --call list_directory --args '{"path":"."}'
+```
+
+Start the teaching HTTP bridge:
+
+```bash
+python examples/ch03/http_adapter.py
+```
+
+Run the schema-aware validator:
+
+```bash
+python examples/ch03/validate_and_call.py --tool list_directory --args-file args.json
+```
+
+On Windows PowerShell, `--args-file` is usually more reliable than inline JSON arguments.
+
+See `examples/README.md` for the example-specific notes and smoke-test commands.
+
+## What the examples are and are not
+
+The Chapter 3 examples are deliberately narrow:
+
+- `stdio_host.py` is a sequential host-side harness for stdio.
+- `http_adapter.py` is a teaching bridge that exposes the stdio server through a single `POST /mcp` endpoint.
+- `transport.py` is a small transport abstraction for the examples.
+- `validate_and_call.py` is a host-side validator that uses `tools/list` schemas before `tools/call`.
+
+These files are useful for learning and inspection. They are not the production runtime surface of the book’s server.
+
+## Security notes
+
+This repository is intended for learning and experimentation, but the safeguards still matter.
+
+- Filesystem access is constrained by `FS_ALLOWED_DIRS`.
+- Browser automation should be treated as a privileged capability.
+- GitHub and Tavily credentials should be supplied through environment variables, not hardcoded.
+- The HTTP bridge in `examples/ch03/http_adapter.py` is a teaching subset, not a hardened production deployment.
+
+## Current status
+
+As of the revised Chapter 3 material, the repo is aligned around the current MCP protocol version `2025-11-25`, the standard transports `stdio` and `Streamable HTTP`, and the distinction between protocol-level errors and tool-result failures.
+
+The next development step in the book is to productionize the real server and add a proper `tests/` tree, rather than expanding the Chapter 3 teaching helpers.
