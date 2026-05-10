@@ -1,105 +1,112 @@
+from __future__ import annotations
+
+from collections.abc import Iterable
 from pathlib import Path
-import os
-
-MAX_INLINE_READ_BYTES = 100_000  # 100 KB
 
 
-def _parse_allowed_dirs() -> list[Path]:
-    """Return the absolute directories the server is allowed to access.
-
-    Directories are provided via the FS_ALLOWED_DIRS environment variable.
-    Multiple paths can be separated by os.pathsep (colon on Unix-like systems,
-    semicolon on Windows). The variable must be set, and each configured path
-    must already exist.
-    """
-    raw = os.getenv("FS_ALLOWED_DIRS")
-    if raw is None or not raw.strip():
-        raise RuntimeError(
-            "FS_ALLOWED_DIRS must be set to one or more absolute directories."
-        )
-
-    dirs: list[str] = [p.strip() for p in raw.split(os.pathsep) if p.strip()]
-    if not dirs:
-        raise RuntimeError(
-            "FS_ALLOWED_DIRS did not contain any usable directory paths."
-        )
-
-    resolved: list[Path] = []
-    for d in dirs:
-        candidate = Path(d).expanduser()
-        if not candidate.is_absolute():
-            raise RuntimeError(
-                f"FS_ALLOWED_DIRS entries must be absolute paths: {d}"
-            )
-
-        p = candidate.resolve()
-        if not p.exists() or not p.is_dir():
-            raise RuntimeError(
-                f"Allowed directory does not exist or is not a directory: {p}"
-            )
-
-        resolved.append(p)
-
-    return resolved
+PathLike = str | Path
+AllowedRoots = tuple[Path, ...]
 
 
-ALLOWED_DIRS: list[Path] = _parse_allowed_dirs()
+def normalize_roots(allowed_roots: Iterable[PathLike]) -> AllowedRoots:
+    """Resolve configured filesystem roots into comparable Path objects."""
 
-
-def _is_subpath(path: Path, parent: Path) -> bool:
-    """Return True if *path* is inside *parent* or is the same path."""
-    return path.is_relative_to(parent)
-
-
-def resolve_and_validate(path: str) -> Path:
-    """Resolve *path* and ensure it stays within ALLOWED_DIRS.
-
-    Raises ValueError if the path falls outside the configured allow-list.
-    """
-    candidate = Path(path).expanduser()
-    if not candidate.is_absolute():
-        candidate = Path.cwd() / candidate
-
-    resolved = candidate.resolve()
-
-    for allowed in ALLOWED_DIRS:
-        if _is_subpath(resolved, allowed):
-            return resolved
-
-    raise ValueError(
-        f"Access to '{resolved}' is not permitted; it lies outside ALLOWED_DIRS."
+    return tuple(
+        Path(root).expanduser().resolve()
+        for root in allowed_roots
     )
 
 
-def read_file_text(path: str, max_bytes: int | None = None) -> str:
-    """Return UTF-8 text content of *path* up to *max_bytes* bytes."""
-    p = resolve_and_validate(path)
-    if not p.is_file():
-        raise ValueError(f"'{p}' is not a file")
+def resolve_and_validate(
+    path: PathLike,
+    allowed_roots: Iterable[PathLike],
+) -> Path:
+    """Resolve a path and ensure it is inside one configured root."""
 
-    limit = MAX_INLINE_READ_BYTES if max_bytes is None else max_bytes
-    with p.open("rb") as f:
-        data = f.read(limit + 1)
+    roots = normalize_roots(allowed_roots)
+    if not roots:
+        raise ValueError("No filesystem roots are configured.")
 
-    text = data[:limit].decode("utf-8", errors="replace")
-    if len(data) > limit:
-        text += "\n...[truncated]..."
-    return text
+    candidate = Path(path).expanduser().resolve()
+
+    if any(_is_within(candidate, root) for root in roots):
+        return candidate
+
+    allowed = ", ".join(str(root) for root in roots)
+    raise ValueError(
+        f"Path '{candidate}' is outside the allowed filesystem roots: {allowed}"
+    )
 
 
-def list_directory(path: str) -> list[dict[str, str]]:
-    """Return structured metadata for entries in *path*."""
-    p = resolve_and_validate(path)
-    if not p.is_dir():
-        raise ValueError(f"'{p}' is not a directory")
+def list_directory_entries(
+    path: PathLike,
+    allowed_roots: Iterable[PathLike],
+) -> tuple[Path, list[Path]]:
+    """Return a resolved directory and its stable sorted entries."""
 
-    entries: list[dict[str, str]] = []
-    for child in sorted(p.iterdir(), key=lambda c: c.name.lower()):
-        entries.append(
-            {
-                "name": child.name,
-                "path": str(child),
-                "type": "dir" if child.is_dir() else "file",
-            }
+    directory = resolve_and_validate(path, allowed_roots)
+
+    if not directory.exists():
+        raise FileNotFoundError(f"Directory not found: {directory}")
+    if not directory.is_dir():
+        raise ValueError(f"Expected a directory path, got: {directory}")
+
+    children = sorted(
+        directory.iterdir(),
+        key=lambda child: (
+            not child.is_dir(),
+            child.name.lower(),
+        ),
+    )
+    return directory, children
+
+
+def read_file_text(
+    path: PathLike,
+    allowed_roots: Iterable[PathLike],
+    *,
+    encoding: str = "utf-8",
+) -> tuple[Path, str]:
+    """Return a resolved file path and its UTF-8 text content."""
+
+    file_path = resolve_and_validate(path, allowed_roots)
+
+    if not file_path.exists():
+        raise FileNotFoundError(f"File not found: {file_path}")
+    if not file_path.is_file():
+        raise ValueError(f"Expected a file path, got: {file_path}")
+
+    return file_path, file_path.read_text(encoding=encoding)
+
+
+def write_file_text(
+    path: PathLike,
+    content: str,
+    allowed_roots: Iterable[PathLike],
+    *,
+    overwrite: bool = True,
+    encoding: str = "utf-8",
+) -> Path:
+    """Write UTF-8 text inside an allowed filesystem root."""
+
+    file_path = resolve_and_validate(path, allowed_roots)
+
+    if file_path.exists() and not overwrite:
+        raise FileExistsError(
+            f"File already exists and overwrite is false: {file_path}"
         )
-    return entries
+
+    if file_path.exists() and not file_path.is_file():
+        raise ValueError(f"Expected a file path, got: {file_path}")
+
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path.write_text(content, encoding=encoding)
+    return file_path
+
+
+def _is_within(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+        return True
+    except ValueError:
+        return False
