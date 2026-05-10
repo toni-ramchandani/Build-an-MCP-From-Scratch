@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from dotenv import find_dotenv, load_dotenv
+
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -27,8 +29,6 @@ class ServerSettings(BaseSettings):
     github_token: str | None = Field(default=None, alias="GITHUB_TOKEN")
 
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
         extra="ignore",
         populate_by_name=True,
         enable_decoding=False,
@@ -74,8 +74,8 @@ class ServerSettings(BaseSettings):
 
         return self
 
-
 def load_settings() -> ServerSettings:
-    """Load and validate runtime settings once at startup."""
+    """Load .env and environment variables, then validate runtime settings."""
 
+    load_dotenv(find_dotenv(usecwd=True))
     return ServerSettings()
