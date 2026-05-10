@@ -1,172 +1,247 @@
 # Build an MCP from Scratch
 
-This repository accompanies the book *Build an MCP from Scratch* and contains the Python code used across the early chapters.
+This repository accompanies the book *Build an MCP from Scratch (Model Context Protocol)*. It keeps the early teaching examples runnable while also providing the Chapter 4 production-shaped runtime package used by the later chapters.
 
-The project has two distinct roles:
+The code intentionally has two layers:
 
-- `src/build_an_mcp_server/` contains the real MCP server used as the book’s running example.
-- `examples/` contains small teaching utilities that make protocol flow, transport behavior, and schema validation easier to inspect.
+- `src/build_an_mcp_server/` is the active MCP server package after the Chapter 4 refactor.
+- `examples/` and chapter snapshots preserve smaller teaching programs from earlier chapters.
 
-The server is intentionally broader than a “hello world” example. It exposes tools, resources, and prompts around four domains:
+The active package uses the official MCP Python SDK package, imported through `mcp.*`, including `FastMCP`, stdio execution, Streamable HTTP, prompt helpers, tool result types, and the SDK in-memory test transport.
 
-- local filesystem access within an explicit allow-list
-- GitHub repository and issue workflows
-- browser automation with Playwright
-- live web search with Tavily
+## Capabilities in the active package
 
-The examples are intentionally narrower. They are not a general-purpose client SDK, and they are not meant to replace the official MCP Python SDK. Their purpose is to make the wire protocol and host-side behavior visible on the page.
+The Chapter 4 package can expose these capability groups through settings:
+
+- Filesystem tools and resources inside configured allowed roots.
+- GitHub repository tools and resources using PyGithub and `GITHUB_TOKEN`.
+- Tavily web search using `TAVILY_API_KEY`.
+- Browser automation through Playwright and Chromium.
+- Prompt templates for recurring file and directory review workflows.
+
+These capabilities remain MCP tools, resources, and prompts. Streamable HTTP exposes one MCP endpoint; it does not create one REST route per tool.
 
 ## Repository layout
 
 ```text
-Build-an-MCP-From-Scratch/
+.
 ├── pyproject.toml
-├── README.md
 ├── .env.example
+├── README.md
 ├── src/
 │   └── build_an_mcp_server/
 │       ├── __init__.py
-│       ├── server.py
+│       ├── config.py
+│       ├── factory.py
 │       ├── fs_utils.py
 │       ├── github_utils.py
-│       └── browser_utils.py
-└── examples/
-    ├── README.md
-    ├── ch02/
-    │   └── minimal_add_server.py
-    └── ch03/
-        ├── stdio_host.py
-        ├── http_adapter.py
-        ├── transport.py
-        └── validate_and_call.py
+│       ├── web_search_utils.py
+│       ├── browser_utils.py
+│       ├── normalizers.py
+│       ├── runtime_state.py
+│       ├── server.py
+│       └── http_server.py
+├── examples/
+│   ├── ch02/
+│   │   ├── server_ch2.py
+│   │   ├── fs_utils_ch2.py
+│   │   ├── github_utils_ch2.py
+│   │   └── browser_utils_ch2.py
+│   └── ch03/
+│       ├── stdio_host.py
+│       ├── http_adapter.py
+│       ├── transport.py
+│       └── validate_and_call.py
+├── scripts/
+│   └── smoke_all_capabilities.py
+└── tests/
+    ├── test_ch02_snapshot.py
+    ├── test_ch04_runtime.py
+    └── test_owner_smoke_integration.py
 ```
 
-## Prerequisites
+## Chapter snapshots versus the active package
 
-- Python 3.10 or later
-- `pip` or `uv`
-- Playwright browser binaries for the browser tools
+Chapter 2 originally builds a larger single-file `server.py`. That teaching version is preserved as `examples/ch02/server_ch2.py` with its own helper copies. It is not part of the active `src/` package.
 
-## Installation
+Chapter 4 refactors the active package into smaller files:
 
-Install the project in editable mode:
+- `config.py` loads and validates runtime settings.
+- `factory.py` assembles the `FastMCP` server and registers enabled capability groups.
+- `server.py` is the thin stdio entry point.
+- `http_server.py` is the native Streamable HTTP entry point.
+- `fs_utils.py`, `github_utils.py`, `web_search_utils.py`, and `browser_utils.py` keep adapter logic out of entry points.
+- `normalizers.py` defines stable filesystem result shapes.
+- `runtime_state.py` owns application runtime state and cleanup callbacks.
+
+## Install
+
+Using `uv`:
 
 ```bash
-pip install -e .
+uv venv
+uv pip install -e ".[dev,examples]"
 ```
 
-Install the optional packages used by the Chapter 3 examples:
+Using `pip`:
 
 ```bash
-pip install -e ".[examples]"
+python -m venv .venv
+. .venv/bin/activate
+pip install -e ".[dev,examples]"
 ```
 
-Install the browser runtime used by the browser tools:
+Windows PowerShell:
+
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+pip install -e ".[dev,examples]"
+```
+
+Install browser binaries only when you want browser capability tests:
 
 ```bash
 playwright install chromium
 ```
 
-## Configuration
+## Configure
 
-Copy the environment template and edit it for your machine:
+Copy the template:
 
 ```bash
 cp .env.example .env
 ```
 
-The main settings are:
+Windows PowerShell:
 
-- `FS_ALLOWED_DIRS`: one or more absolute directories the filesystem tools are allowed to access
-- `GITHUB_TOKEN`: required for GitHub-backed tools and resources
-- `TAVILY_API_KEY`: required for the `web_search` tool
-
-`FS_ALLOWED_DIRS` is not optional for the filesystem helpers in this server. The helper module fails closed if the variable is missing or empty.
-
-Examples:
-
-```env
-# Windows
-FS_ALLOWED_DIRS=C:\work\repo;C:\work\scratch
-
-# macOS / Linux
-FS_ALLOWED_DIRS=/home/user/work/repo:/home/user/scratch
-
-GITHUB_TOKEN=your_token_here
-TAVILY_API_KEY=your_api_key_here
-LOG_LEVEL=INFO
+```powershell
+copy .env.example .env
 ```
 
-## Running the server
+Minimal local configuration:
 
-Run the real server package directly:
+```env
+ENABLE_FILESYSTEM=true
+FS_ALLOWED_DIRS=.
+READ_ONLY=false
+ENABLE_GITHUB=false
+ENABLE_WEB_SEARCH=false
+ENABLE_BROWSER=false
+```
+
+Full owner-level configuration:
+
+```env
+ENABLE_FILESYSTEM=true
+FS_ALLOWED_DIRS=.
+READ_ONLY=false
+
+ENABLE_GITHUB=true
+GITHUB_TOKEN=your_github_token
+
+ENABLE_WEB_SEARCH=true
+TAVILY_API_KEY=your_tavily_key
+
+ENABLE_BROWSER=true
+BROWSER_HEADLESS=true
+BROWSER_TIMEOUT_MS=15000
+```
+
+## Run the Chapter 2 preserved server
+
+Raw file form:
+
+```bash
+FS_ALLOWED_DIRS="$(pwd)" python examples/ch02/server_ch2.py
+```
+
+Module form:
+
+```bash
+FS_ALLOWED_DIRS="$(pwd)" python -m examples.ch02.server_ch2
+```
+
+The process waits on stdio for MCP messages. Use MCP Inspector for interactive testing:
+
+```bash
+npx @modelcontextprotocol/inspector python -m examples.ch02.server_ch2
+```
+
+## Run the Chapter 4 stdio server
 
 ```bash
 python -m build_an_mcp_server.server
 ```
 
-You can also use the console script installed from `pyproject.toml`:
+or through the console script:
 
 ```bash
 build-an-mcp-server
 ```
 
-The default runtime path is stdio, which is the simplest way to connect a local host to the server.
+Do not run `python src/build_an_mcp_server/server.py`; this is a `src/` package with relative imports.
 
-## Running the examples
-
-The examples in `examples/ch03/` are chapter support programs.
-
-List tools and inspect the stdio handshake:
+## Run the Chapter 4 Streamable HTTP server
 
 ```bash
-python examples/ch03/stdio_host.py
+python -m build_an_mcp_server.http_server
 ```
 
-Call one tool through the stdio harness:
+or through the console script:
 
 ```bash
-python examples/ch03/stdio_host.py --call list_directory --args '{"path":"."}'
+build-an-mcp-server-http
 ```
 
-Start the teaching HTTP bridge:
+The MCP endpoint is:
+
+```text
+http://127.0.0.1:8000/mcp
+```
+
+Use Inspector with transport `Streamable HTTP` and URL `http://127.0.0.1:8000/mcp`.
+
+## Test levels
+
+### 1. Fast local tests
+
+These require no external credentials and do not open a browser:
 
 ```bash
-python examples/ch03/http_adapter.py
+pytest tests/test_ch02_snapshot.py tests/test_ch04_runtime.py
 ```
 
-Run the schema-aware validator:
+Expected result: Chapter 2 snapshot helpers import and work; Chapter 4 can list tools, read and write files, return structured content, remove write tools in read-only mode, and construct the HTTP app.
+
+### 2. Owner-level capability smoke test script
+
+This runs through an actual MCP client session and calls enabled capabilities:
 
 ```bash
-python examples/ch03/validate_and_call.py --tool list_directory --args-file args.json
+python scripts/smoke_all_capabilities.py
 ```
 
-On Windows PowerShell, `--args-file` is usually more reliable than inline JSON arguments.
+With the minimal `.env`, it tests filesystem and prompts. With full `.env`, it also tests GitHub, Tavily web search, and Playwright browser automation.
 
-See `examples/README.md` for the example-specific notes and smoke-test commands.
+### 3. Owner-level pytest integration test
 
-## What the examples are and are not
+Set your `.env` for full capabilities, install Chromium, then run:
 
-The Chapter 3 examples are deliberately narrow:
+```bash
+RUN_INTEGRATION=1 pytest tests/test_owner_smoke_integration.py -s
+```
 
-- `stdio_host.py` is a sequential host-side harness for stdio.
-- `http_adapter.py` is a teaching bridge that exposes the stdio server through a single `POST /mcp` endpoint.
-- `transport.py` is a small transport abstraction for the examples.
-- `validate_and_call.py` is a host-side validator that uses `tools/list` schemas before `tools/call`.
+This test skips external capability checks unless both the feature flag and the needed credential/runtime are available.
 
-These files are useful for learning and inspection. They are not the production runtime surface of the book’s server.
+## Common failures
+
+- `ModuleNotFoundError: mcp`: install with `pip install -e ".[dev,examples]"`.
+- `GITHUB_TOKEN is required`: set `ENABLE_GITHUB=false` or provide `GITHUB_TOKEN`.
+- `TAVILY_API_KEY is required`: set `ENABLE_WEB_SEARCH=false` or provide `TAVILY_API_KEY`.
+- Browser launch fails: run `playwright install chromium`.
+- `write_file` missing from `tools/list`: check `READ_ONLY`; this is expected when `READ_ONLY=true`.
 
 ## Security notes
 
-This repository is intended for learning and experimentation, but the safeguards still matter.
-
-- Filesystem access is constrained by `FS_ALLOWED_DIRS`.
-- Browser automation should be treated as a privileged capability.
-- GitHub and Tavily credentials should be supplied through environment variables, not hardcoded.
-- The HTTP bridge in `examples/ch03/http_adapter.py` is a teaching subset, not a hardened production deployment.
-
-## Current status
-
-As of the revised Chapter 3 material, the repo is aligned around the current MCP protocol version `2025-11-25`, the standard transports `stdio` and `Streamable HTTP`, and the distinction between protocol-level errors and tool-result failures.
-
-The next development step in the book is to productionize the real server and add a proper `tests/` tree, rather than expanding the Chapter 3 teaching helpers.
+This repo is a teaching project, not a hardened deployment. The Chapter 4 runtime adds local binding, Origin validation, explicit filesystem roots, read-only mode, and cleanup hooks. Authentication, authorization, observability, rate limiting, multi-tenant controls, and deployment hardening belong to later chapters.
