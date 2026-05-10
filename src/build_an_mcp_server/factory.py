@@ -13,9 +13,6 @@ from .fs_utils import (
     write_file_text,
 )
 from .normalizers import (
-    DirectoryListing,
-    TextFileRead,
-    WriteFileReceipt,
     map_allowed_roots,
     map_directory_listing,
     map_text_file,
@@ -105,9 +102,7 @@ def _register_filesystem_capabilities(
             except (ValueError, OSError, UnicodeError) as exc:
                 return _tool_error(str(exc))
 
-            fallback = (
-                f"Wrote {receipt.bytesWritten} bytes to {receipt.path}"
-            )
+            fallback = f"Wrote {receipt.bytesWritten} bytes to {receipt.path}"
             return _tool_success(receipt, fallback)
 
 
