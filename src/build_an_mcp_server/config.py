@@ -4,7 +4,6 @@ import os
 from pathlib import Path
 
 from dotenv import find_dotenv, load_dotenv
-
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -73,6 +72,7 @@ class ServerSettings(BaseSettings):
             )
 
         return self
+
 
 def load_settings() -> ServerSettings:
     """Load .env and environment variables, then validate runtime settings."""
