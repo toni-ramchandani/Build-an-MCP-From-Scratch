@@ -1,17 +1,78 @@
+# Python bytecode and caches
 __pycache__/
 *.py[cod]
+*$py.class
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.tox/
+.nox/
 .coverage
+.coverage.*
 htmlcov/
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+
+# Virtual environments and local package caches
 .venv/
 venv/
-.env
-*.egg-info/
+env/
+ENV/
+__pypackages__/
+
+# Build and packaging output
 build/
 dist/
-.DS_Store
-.vscode/
-.idea/
+*.egg-info/
+.eggs/
+*.egg
+pip-wheel-metadata/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+
+# Logs and runtime artifacts
+*.log
+logs/
+artifacts/
+tmp/
+.temp/
+
+# Playwright / browser test output
 .playwright/
+playwright-report/
+test-results/
+traces/
 playwright-state/
+
+# MCP Inspector local state
+.mcp-inspector/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Documentation build output only; keep source docs if added later
 docs/_build/
+site/
+
+# Lock files
+# Keep uv.lock if you want fully reproducible book builds. Uncomment the next
+# line only if you intentionally do not want to commit lock files.
+# uv.lock
