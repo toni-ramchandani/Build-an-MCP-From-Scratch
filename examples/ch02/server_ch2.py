@@ -14,15 +14,66 @@ from playwright.async_api import TimeoutError as PWTimeoutError
 # Load environment variables - search up the directory tree for .env file
 load_dotenv(find_dotenv(usecwd=True))
 
-from .browser_utils import close_page, get_page, new_page, page_screenshot_base64
-from .fs_utils import (
-    list_directory as fs_list_directory,
-    read_file_text,
-    resolve_and_validate,
-)
-from .github_utils import get_github_client
+try:
+    from .browser_utils_ch2 import close_page, get_page, new_page, page_screenshot_base64
+    from .fs_utils_ch2 import (
+        list_directory as fs_list_directory,
+        read_file_text,
+        resolve_and_validate,
+    )
+    from .github_utils_ch2 import get_github_client
+except ImportError:  # Supports raw execution: python examples/ch02/server_ch2.py
+    from browser_utils_ch2 import close_page, get_page, new_page, page_screenshot_base64
+    from fs_utils_ch2 import (
+        list_directory as fs_list_directory,
+        read_file_text,
+        resolve_and_validate,
+    )
+    from github_utils_ch2 import get_github_client
 
 mcp = FastMCP("Build an MCP from Scratch")
+
+
+async def fetch_repository_metadata(owner: str, repo: str) -> dict[str, Any]:
+    """Return a compact repository metadata dictionary for the Chapter 2 snapshot."""
+
+    github = get_github_client()
+    repository = github.get_repo(f"{owner}/{repo}")
+    return {
+        "name": repository.name,
+        "full_name": repository.full_name,
+        "description": repository.description,
+        "html_url": repository.html_url,
+        "language": repository.language,
+        "stargazers_count": repository.stargazers_count,
+        "open_issues_count": repository.open_issues_count,
+        "default_branch": repository.default_branch,
+        "updated_at": repository.updated_at.isoformat(),
+    }
+
+
+async def fetch_open_issues(owner: str, repo: str, limit: int = 10) -> list[dict[str, Any]]:
+    """Return a compact list of open issues for the Chapter 2 snapshot."""
+
+    github = get_github_client()
+    repository = github.get_repo(f"{owner}/{repo}")
+    issues = repository.get_issues(state="open")
+    results: list[dict[str, Any]] = []
+    for issue in issues[:limit]:
+        results.append(
+            {
+                "number": issue.number,
+                "title": issue.title,
+                "state": issue.state,
+                "user": issue.user.login,
+                "created_at": issue.created_at.isoformat(),
+                "updated_at": issue.updated_at.isoformat(),
+                "html_url": issue.html_url,
+                "body": issue.body or "",
+            }
+        )
+    return results
+
 
 
 # ---------------------------------------------------------------------------
