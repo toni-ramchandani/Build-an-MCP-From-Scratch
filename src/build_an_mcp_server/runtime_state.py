@@ -18,8 +18,8 @@ Cleanup: TypeAlias = Callable[[], None | Awaitable[None]]
 class RuntimeState:
     """Application-owned runtime state for one running MCP server.
 
-    This is not an MCP protocol session and not a general memory store.
-    It exists so adapters can register live handles and cleanup callbacks.
+    This is not an MCP protocol session and not a general memory store. It
+    exists so adapters can register live handles and cleanup callbacks.
     """
 
     settings: ServerSettings
