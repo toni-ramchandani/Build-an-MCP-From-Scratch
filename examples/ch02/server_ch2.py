@@ -732,11 +732,9 @@ def web_automation_plan(task_description: str, target_url: str = "") -> list[bas
         base.UserMessage(task),
     ]
 
-
 def main() -> None:
     """Main entry point for the MCP server."""
-    mcp.run()
-
+    mcp.run(transport="stdio")
 
 if __name__ == "__main__":
     main()
