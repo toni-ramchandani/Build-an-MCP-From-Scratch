@@ -5,21 +5,27 @@ from pathlib import Path
 
 MAX_INLINE_READ_BYTES = 100_000
 
-
 def _parse_allowed_dirs() -> list[Path]:
     raw = os.getenv("FS_ALLOWED_DIRS")
     if raw is None or not raw.strip():
-        raw = str(Path.cwd())
+        raise RuntimeError(
+            "FS_ALLOWED_DIRS must be set to one or more absolute directories."
+        )
 
     dirs = [part.strip() for part in raw.split(os.pathsep) if part.strip()]
     if not dirs:
-        dirs = [str(Path.cwd())]
+        raise RuntimeError(
+            "FS_ALLOWED_DIRS did not contain any usable directory paths."
+        )
 
     resolved: list[Path] = []
     for directory in dirs:
         candidate = Path(directory).expanduser()
         if not candidate.is_absolute():
-            candidate = Path.cwd() / candidate
+            raise RuntimeError(
+                f"FS_ALLOWED_DIRS entries must be absolute paths: {directory}"
+            )
+
         path = candidate.resolve()
         if not path.exists() or not path.is_dir():
             raise RuntimeError(
