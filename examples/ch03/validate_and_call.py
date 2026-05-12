@@ -22,7 +22,7 @@ try:
 except Exception:  # pragma: no cover - optional dependency for the example
     Draft202012Validator = None
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 PROTOCOL_VERSION = os.environ.get("MCP_PROTOCOL_VERSION", "2025-11-25")
 
 
