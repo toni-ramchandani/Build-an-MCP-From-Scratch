@@ -125,7 +125,14 @@ Minimal local configuration:
 
 ```env
 ENABLE_FILESYSTEM=true
-FS_ALLOWED_DIRS=.
+
+# Use an absolute path.
+# macOS/Linux example:
+# FS_ALLOWED_DIRS=/Users/you/projects/Build-an-MCP-From-Scratch
+# Windows example:
+# FS_ALLOWED_DIRS=C:\Users\you\projects\Build-an-MCP-From-Scratch
+FS_ALLOWED_DIRS=/absolute/path/to/your/project
+
 READ_ONLY=false
 ENABLE_GITHUB=false
 ENABLE_WEB_SEARCH=false
@@ -136,7 +143,7 @@ Full owner-level configuration:
 
 ```env
 ENABLE_FILESYSTEM=true
-FS_ALLOWED_DIRS=.
+FS_ALLOWED_DIRS=/absolute/path/to/your/project
 READ_ONLY=false
 
 ENABLE_GITHUB=true
@@ -150,7 +157,12 @@ BROWSER_HEADLESS=true
 BROWSER_TIMEOUT_MS=15000
 ```
 
-## Run the Chapter 2 preserved server
+## Run the Chapter 2 examples
+
+Chapter 2 has two runnable examples:
+
+- `examples/ch02/minimal_add_server.py` is the smallest tool demo used for the first `add` example.
+- `examples/ch02/server_ch2.py` is the full Chapter 2 snapshot with filesystem, GitHub, browser, web-search, resource, and prompt examples.
 
 ### Minimal tool demo
 
@@ -164,6 +176,44 @@ Use MCP Inspector for interactive testing:
 
 ```bash
 npx @modelcontextprotocol/inspector python -m examples.ch02.minimal_add_server
+```
+
+### Full Chapter 2 snapshot
+
+The full Chapter 2 snapshot uses `FS_ALLOWED_DIRS`, so set it to an absolute directory before running the server.
+
+macOS/Linux:
+
+```bash
+FS_ALLOWED_DIRS="$(pwd)" python -m examples.ch02.server_ch2
+```
+
+Windows PowerShell:
+
+```powershell
+$env:FS_ALLOWED_DIRS = (Get-Location).Path
+python -m examples.ch02.server_ch2
+```
+
+Use MCP Inspector for interactive testing.
+
+macOS/Linux:
+
+```bash
+FS_ALLOWED_DIRS="$(pwd)" npx @modelcontextprotocol/inspector python -m examples.ch02.server_ch2
+```
+
+Windows PowerShell:
+
+```powershell
+$env:FS_ALLOWED_DIRS = (Get-Location).Path
+npx @modelcontextprotocol/inspector python -m examples.ch02.server_ch2
+```
+
+Raw file execution is also supported:
+
+```bash
+FS_ALLOWED_DIRS="$(pwd)" python examples/ch02/server_ch2.py
 ```
 
 ## Run the Chapter 4 stdio server
