@@ -152,22 +152,18 @@ BROWSER_TIMEOUT_MS=15000
 
 ## Run the Chapter 2 preserved server
 
-Raw file form:
+### Minimal tool demo
+
+The smallest Chapter 2 example registers one `add` tool and runs the server over stdio:
 
 ```bash
-FS_ALLOWED_DIRS="$(pwd)" python examples/ch02/server_ch2.py
+python -m examples.ch02.minimal_add_server
 ```
 
-Module form:
+Use MCP Inspector for interactive testing:
 
 ```bash
-FS_ALLOWED_DIRS="$(pwd)" python -m examples.ch02.server_ch2
-```
-
-The process waits on stdio for MCP messages. Use MCP Inspector for interactive testing:
-
-```bash
-npx @modelcontextprotocol/inspector python -m examples.ch02.server_ch2
+npx @modelcontextprotocol/inspector python -m examples.ch02.minimal_add_server
 ```
 
 ## Run the Chapter 4 stdio server
