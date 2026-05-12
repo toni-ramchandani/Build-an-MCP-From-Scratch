@@ -612,10 +612,20 @@ def web_search(
         }
 
         if include_domains:
-            payload["include_domains"] = include_domains
-        if exclude_domains:
-            payload["exclude_domains"] = exclude_domains
+            payload["include_domains"] = [
+                domain.strip()
+                for domain in include_domains.split(",")
+                if domain.strip()
+            ]
 
+        if exclude_domains:
+            payload["exclude_domains"] = [
+                domain.strip()
+                for domain in exclude_domains.split(",")
+                if domain.strip()
+        ]
+
+                
         resp = requests.post(url, json=payload, timeout=15)
         if resp.status_code != 200:
             return {"error": f"Tavily API error {resp.status_code}: {resp.text}"}
