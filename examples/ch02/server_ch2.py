@@ -170,7 +170,7 @@ async def get_repository(owner: str, repo: str) -> str:
     try:
         repo_data = await fetch_repository_metadata(owner, repo)
         return json.dumps(repo_data, indent=2)
-    except ValueError:
+    except (ValueError, GithubException):
         return "GitHub data could not be retrieved."
 
 
@@ -196,7 +196,7 @@ async def get_repository_issues(owner: str, repo: str) -> str:
             )
 
         return json.dumps(issues_data, indent=2)
-    except ValueError:
+    except (ValueError, GithubException):
         return "GitHub issues could not be retrieved."
 
 
