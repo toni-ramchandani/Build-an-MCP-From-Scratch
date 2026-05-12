@@ -132,7 +132,7 @@ def write_file(path: str, content: str, overwrite: bool = True) -> dict[str, obj
         return {
             "ok": True,
             "path": str(p),
-            "bytes_written": len(content),
+            "bytes_written": len(content.encode("utf-8")),
         }
     except (ValueError, OSError) as exc:
         return {
