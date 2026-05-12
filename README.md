@@ -43,6 +43,8 @@ These capabilities remain MCP tools, resources, and prompts. Streamable HTTP exp
 │       └── http_server.py
 ├── examples/
 │   ├── ch02/
+│   │   ├── __init__.py
+│   │   ├── minimal_add_server.py
 │   │   ├── server_ch2.py
 │   │   ├── fs_utils_ch2.py
 │   │   ├── github_utils_ch2.py
