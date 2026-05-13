@@ -35,7 +35,6 @@ These capabilities remain MCP tools, resources, and prompts. Streamable HTTP exp
 │       ├── factory.py
 │       ├── fs_utils.py
 │       ├── github_utils.py
-│       ├── web_search_utils.py
 │       ├── browser_utils.py
 │       ├── normalizers.py
 │       ├── runtime_state.py
