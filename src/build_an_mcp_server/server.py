@@ -9,7 +9,7 @@ def main() -> None:
 
     settings = load_settings()
     mcp = create_server(settings)
-    mcp.run()
+    mcp.run(transport="stdio")
 
 
 if __name__ == "__main__":
