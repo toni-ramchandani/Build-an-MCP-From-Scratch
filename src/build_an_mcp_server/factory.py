@@ -5,7 +5,6 @@ from mcp.server.fastmcp.exceptions import ToolError
 from mcp.server.fastmcp.prompts import base
 
 from .config import ServerSettings
-
 from .fs_utils import (
     list_directory_entries,
     read_file_text,
@@ -67,23 +66,19 @@ def _register_filesystem_capabilities(
                 path,
                 allowed_roots,
             )
-            listing = map_directory_listing(directory, children)
         except (ValueError, OSError) as exc:
-            return _tool_error(str(exc))
+            raise ToolError(str(exc)) from exc
 
-        names = [entry.name for entry in listing.entries]
-        fallback = "\n".join(names) if names else "(empty directory)"
-        return _tool_success(listing, fallback)
+        return map_directory_listing(directory, children)
 
     @mcp.tool()
-    def read_file(path: str) -> CallToolResult:
+    def read_file(path: str) -> TextFileRead:
         try:
             resolved, content = read_file_text(path, allowed_roots)
-            result = map_text_file(resolved, content)
         except (ValueError, OSError, UnicodeError) as exc:
-            return _tool_error(str(exc))
+            raise ToolError(str(exc)) from exc
 
-        return _tool_success(result, result.content)
+        return map_text_file(resolved, content)
 
     if not settings.read_only:
 
@@ -92,7 +87,7 @@ def _register_filesystem_capabilities(
             path: str,
             content: str,
             overwrite: bool = True,
-        ) -> CallToolResult:
+        ) -> WriteFileReceipt:
             try:
                 resolved = write_file_text(
                     path,
@@ -100,12 +95,10 @@ def _register_filesystem_capabilities(
                     allowed_roots,
                     overwrite=overwrite,
                 )
-                receipt = map_write_receipt(resolved, content, overwrite)
             except (ValueError, OSError, UnicodeError) as exc:
-                return _tool_error(str(exc))
+                raise ToolError(str(exc)) from exc
 
-            fallback = f"Wrote {receipt.bytesWritten} bytes to {receipt.path}"
-            return _tool_success(receipt, fallback)
+            return map_write_receipt(resolved, content, overwrite)
 
 
 def _register_prompt_capabilities(mcp: FastMCP) -> None:
@@ -158,4 +151,3 @@ def _register_browser_capabilities(
         ) from exc
 
     register_browser_capabilities(mcp, settings)
-
