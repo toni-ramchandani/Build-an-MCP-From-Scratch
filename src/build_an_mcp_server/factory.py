@@ -59,7 +59,7 @@ def _register_filesystem_capabilities(
         return resource_json(manifest)
 
     @mcp.tool()
-    def list_files(path: str) -> CallToolResult:
+    def list_files(path: str) -> DirectoryListing:
         try:
             directory, children = list_directory_entries(
                 path,
