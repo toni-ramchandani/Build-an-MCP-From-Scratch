@@ -1,18 +1,20 @@
 from __future__ import annotations
 
-from pydantic import BaseModel
-
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.exceptions import ToolError
 from mcp.server.fastmcp.prompts import base
-from mcp.types import CallToolResult, TextContent
 
 from .config import ServerSettings
+
 from .fs_utils import (
     list_directory_entries,
     read_file_text,
     write_file_text,
 )
 from .normalizers import (
+    DirectoryListing,
+    TextFileRead,
+    WriteFileReceipt,
     map_allowed_roots,
     map_directory_listing,
     map_text_file,
@@ -157,26 +159,3 @@ def _register_browser_capabilities(
 
     register_browser_capabilities(mcp, settings)
 
-
-def _tool_success(model: BaseModel, fallback_text: str) -> CallToolResult:
-    return CallToolResult(
-        content=[
-            TextContent(
-                type="text",
-                text=fallback_text,
-            )
-        ],
-        structuredContent=model.model_dump(mode="json"),
-    )
-
-
-def _tool_error(message: str) -> CallToolResult:
-    return CallToolResult(
-        content=[
-            TextContent(
-                type="text",
-                text=message,
-            )
-        ],
-        isError=True,
-    )
