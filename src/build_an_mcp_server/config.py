@@ -62,8 +62,9 @@ class ServerSettings(BaseSettings):
         )
 
         if self.enable_filesystem and not resolved_roots:
-            resolved_roots = (Path.cwd().resolve(),)
-
+            raise ValueError(
+                "ENABLE_FILESYSTEM is true, but FS_ALLOWED_DIRS is not configured."
+            )
         self.fs_allowed_dirs = resolved_roots
 
         if self.enable_github and not self.github_token:
