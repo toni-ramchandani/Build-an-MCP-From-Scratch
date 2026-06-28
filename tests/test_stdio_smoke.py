@@ -133,7 +133,7 @@ def test_stdio_initialize_initialized_and_tools_list(tmp_path: Path) -> None:
                     "protocolVersion": types.LATEST_PROTOCOL_VERSION,
                     "capabilities": {},
                     "clientInfo": {
-                        "name": "chapter5-stdio-smoke",
+                        "name": "chapter6-stdio-smoke",
                         "version": "0.1.0",
                     },
                 },
@@ -182,7 +182,7 @@ def test_stdio_read_file_with_absolute_allowed_path(tmp_path: Path) -> None:
                     "protocolVersion": types.LATEST_PROTOCOL_VERSION,
                     "capabilities": {},
                     "clientInfo": {
-                        "name": "chapter5-stdio-smoke",
+                        "name": "chapter6-stdio-smoke",
                         "version": "0.1.0",
                     },
                 },
