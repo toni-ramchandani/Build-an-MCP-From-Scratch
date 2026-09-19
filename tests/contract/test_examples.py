@@ -39,11 +39,30 @@ async def test_chapter_2_minimal_tool_example() -> None:
         tools = await client.list_tools()
         result = await client.call_tool("add", {"a": 20, "b": 22})
 
-    assert [tool.name for tool in tools.tools] == ["add"]
-    assert tools.tools[0].annotations is not None
-    assert tools.tools[0].annotations.read_only_hint is True
-    assert tools.tools[0].annotations.idempotent_hint is True
-    assert tools.tools[0].annotations.open_world_hint is False
+    assert len(tools.tools) == 1
+
+    tool = tools.tools[0]
+
+    assert tool.name == "add"
+    assert tool.title == "Add two integers"
+    assert tool.description == "Return the sum of two integers."
+
+    assert tool.input_schema["type"] == "object"
+    assert set(tool.input_schema["required"]) == {"a", "b"}
+    assert set(tool.input_schema["properties"]) == {"a", "b"}
+    assert tool.input_schema["properties"]["a"]["type"] == "integer"
+    assert tool.input_schema["properties"]["b"]["type"] == "integer"
+
+    assert tool.output_schema is not None
+    assert tool.output_schema["type"] == "object"
+    assert set(tool.output_schema["required"]) == {"result"}
+    assert set(tool.output_schema["properties"]) == {"result"}
+    assert tool.output_schema["properties"]["result"]["type"] == "integer"
+
+    assert tool.annotations is not None
+    assert tool.annotations.read_only_hint is True
+    assert tool.annotations.open_world_hint is False
+
     assert result.is_error is False
     assert result.structured_content == {"result": 42}
 
