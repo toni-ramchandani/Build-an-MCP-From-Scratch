@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "build-an-mcp-server": {
+      "type": "stdio",
+      "command": "<ABSOLUTE_PATH_TO_UV>",
+      "args": [
+        "run",
+        "--frozen",
+        "--project",
+        "<ABSOLUTE_PATH_TO_REPOSITORY>",
+        "--directory",
+        "<ABSOLUTE_PATH_TO_CANARY_WORKSPACE>",
+        "build-an-mcp-server"
+      ],
+      "env": {
+        "MCP_ENABLE_WORKSPACE": "true",
+        "MCP_WORKSPACE_ROOTS": "<ABSOLUTE_PATH_TO_CANARY_WORKSPACE>",
+        "MCP_ENABLE_MUTATION": "false",
+        "MCP_ENABLE_GITHUB": "false",
+        "MCP_ENABLE_BROWSER": "false"
+      }
+    }
+  }
+}
