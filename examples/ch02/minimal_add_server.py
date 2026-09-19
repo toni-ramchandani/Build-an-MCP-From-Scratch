@@ -9,7 +9,10 @@ server = MCPServer("chapter-2-minimal")
 @server.tool(
     title="Add two integers",
     description="Return the sum of two integers.",
-    annotations=ToolAnnotations(read_only_hint=True, idempotent_hint=True, open_world_hint=False),
+    annotations=ToolAnnotations(
+        read_only_hint=True,
+        open_world_hint=False,
+    ),
 )
 def add(a: int, b: int) -> int:
     return a + b
