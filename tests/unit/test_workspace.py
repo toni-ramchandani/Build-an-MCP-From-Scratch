@@ -45,6 +45,19 @@ def test_directory_listing_is_sorted_and_paginated(workspace_root: Path) -> None
     assert [entry.name for entry in second.entries] == ["z.txt"]
     assert second.truncated is False
 
+def test_directory_scan_ceiling_rejects_oversized_directory(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "oversized-directory"
+    root.mkdir()
+
+    for index in range(1_001):
+        (root / f"file-{index:04}.txt").touch()
+
+    adapter = _adapter(root, entries=2)
+
+    with pytest.raises(PublicToolError, match="too large to list safely"):
+        adapter.list_directory("root-1", ".", offset=0)
 
 def test_read_is_utf8_safe_bounded_and_continuable(tmp_path: Path) -> None:
     root = tmp_path / "root"
