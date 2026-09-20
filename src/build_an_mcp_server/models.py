@@ -55,7 +55,7 @@ class TextFileRead(BaseModel):
     next_offset_bytes: int | None
     sha256: str | None = Field(
         description=(
-            "Digest of the complete file when the file is within the bounded mutation budget; "
+            "Digest of the complete file when the file is within the configured digest budget; "
             "otherwise null."
         )
     )
