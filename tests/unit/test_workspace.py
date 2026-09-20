@@ -45,6 +45,7 @@ def test_directory_listing_is_sorted_and_paginated(workspace_root: Path) -> None
     assert [entry.name for entry in second.entries] == ["z.txt"]
     assert second.truncated is False
 
+
 def test_directory_scan_ceiling_rejects_oversized_directory(
     tmp_path: Path,
 ) -> None:
@@ -58,6 +59,7 @@ def test_directory_scan_ceiling_rejects_oversized_directory(
 
     with pytest.raises(PublicToolError, match="too large to list safely"):
         adapter.list_directory("root-1", ".", offset=0)
+
 
 def test_read_is_utf8_safe_bounded_and_continuable(tmp_path: Path) -> None:
     root = tmp_path / "root"
@@ -134,30 +136,54 @@ def test_symlink_to_outside_cannot_be_read_or_written(tmp_path: Path) -> None:
     outside = tmp_path / "outside.txt"
     outside.write_text("private", encoding="utf-8")
     link = root / "link.txt"
+
     try:
         link.symlink_to(outside)
     except OSError:
         pytest.skip("symbolic links are unavailable on this platform")
 
     adapter = _adapter(root)
+
     with pytest.raises(PublicToolError, match="outside"):
         adapter.read_text("root-1", "link.txt", offset_bytes=0)
+
     with pytest.raises(PublicToolError, match="outside|symbolic"):
-        adapter.write_text("root-1", "link.txt", "changed", expected_sha256="absent")
+        adapter.write_text(
+            "root-1",
+            "link.txt",
+            "changed",
+            expected_sha256="absent",
+        )
 
 
 def test_write_requires_expected_state_and_is_atomic(workspace_root: Path) -> None:
     adapter = _adapter(workspace_root, write_bytes=64)
 
-    created = adapter.write_text("root-1", "notes.txt", "first\n", expected_sha256="absent")
+    created = adapter.write_text(
+        "root-1",
+        "notes.txt",
+        "first\n",
+        expected_sha256="absent",
+    )
     assert created.created is True
 
     with pytest.raises(PublicToolError, match="state changed"):
-        adapter.write_text("root-1", "notes.txt", "wrong\n", expected_sha256="absent")
+        adapter.write_text(
+            "root-1",
+            "notes.txt",
+            "wrong\n",
+            expected_sha256="absent",
+        )
 
     current = adapter.read_text("root-1", "notes.txt", offset_bytes=0)
     assert current.sha256 is not None
-    replaced = adapter.write_text("root-1", "notes.txt", "second\n", expected_sha256=current.sha256)
+
+    replaced = adapter.write_text(
+        "root-1",
+        "notes.txt",
+        "second\n",
+        expected_sha256=current.sha256,
+    )
     assert replaced.created is False
     assert (workspace_root / "notes.txt").read_text(encoding="utf-8") == "second\n"
 
@@ -168,6 +194,17 @@ def test_write_rejects_oversized_content_and_existing_file(workspace_root: Path)
     large.write_text("x" * 32, encoding="utf-8")
 
     with pytest.raises(PublicToolError, match="output budget"):
-        adapter.write_text("root-1", "new.txt", "x" * 17, expected_sha256="absent")
+        adapter.write_text(
+            "root-1",
+            "new.txt",
+            "x" * 17,
+            expected_sha256="absent",
+        )
+
     with pytest.raises(PublicToolError, match="too large"):
-        adapter.write_text("root-1", "large.txt", "small", expected_sha256="0" * 64)
+        adapter.write_text(
+            "root-1",
+            "large.txt",
+            "small",
+            expected_sha256="0" * 64,
+        )
