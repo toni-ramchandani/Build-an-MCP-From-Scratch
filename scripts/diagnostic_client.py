@@ -30,6 +30,7 @@ _BASE_STDIO_MCP_SETTINGS = frozenset(
         "MCP_ENABLE_BROWSER",
         "MCP_MAX_FILE_READ_BYTES",
         "MCP_MAX_WRITE_BYTES",
+        "MCP_MAX_DIGEST_BYTES",
         "MCP_MAX_DIRECTORY_ENTRIES",
         "MCP_LOG_LEVEL",
     }
