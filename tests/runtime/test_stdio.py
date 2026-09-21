@@ -80,6 +80,7 @@ def test_diagnostic_stdio_environment_is_feature_scoped(
     environment = server_environment(workspace_root)
     environment.update(
         {
+            "MCP_MAX_DIGEST_BYTES": "131072",
             "MCP_GITHUB_TOKEN": SECRET_CANARY,
             "MCP_GITHUB_REPOSITORIES": "invalid-repository-shape",
             "MCP_HTTP_HOST": "0.0.0.0",
@@ -100,6 +101,7 @@ def test_diagnostic_stdio_environment_is_feature_scoped(
     forwarded = json.loads(completed.stdout)
     assert forwarded["MCP_WORKSPACE_ROOTS"] == str(workspace_root)
     assert forwarded["MCP_ENABLE_GITHUB"] == "false"
+    assert forwarded["MCP_MAX_DIGEST_BYTES"] == "131072"
     assert "MCP_GITHUB_TOKEN" not in forwarded
     assert "MCP_GITHUB_REPOSITORIES" not in forwarded
     assert "MCP_HTTP_HOST" not in forwarded
