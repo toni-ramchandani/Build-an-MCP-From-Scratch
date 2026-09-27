@@ -58,6 +58,7 @@ Install the locked development environment:
 uv sync --locked --extra dev
 ```
 
+
 A pip environment can install the project, but pip does not consume `uv.lock`,
 so it is a fallback rather than the reproducible path:
 
