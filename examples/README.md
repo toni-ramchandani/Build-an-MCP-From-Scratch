@@ -8,12 +8,17 @@ small mechanism microscopes, not chapter-sized copies of that server.
 | 2 | `ch02/minimal_add_server.py` | What is the smallest useful MCP tool registration? |
 | 3 | `ch03/raw_stdio_trace.py` | What does one MCP 2026-07-28 request and response look like over newline-framed stdio? |
 
-Run the minimal server with the repository's Inspector pin:
+Check the minimal example through the SDK client on the book's explicit
+2026-07-28 protocol path:
 
-```bash
-npx --yes @modelcontextprotocol/inspector@2.2.0 \
-  uv run python examples/ch02/minimal_add_server.py
+```text
+uv run --frozen --extra dev python -m pytest -q tests/contract/test_examples.py -k chapter_2
 ```
+
+The test discovers the typed `add` operation, checks its schemas, invokes it
+with 20 and 22, and checks the structured result. For an interactive view of
+the complete workspace server, use the explicit-modern Inspector template
+described in the root README.
 
 Trace one raw request against an explicit workspace root:
 

@@ -20,6 +20,7 @@ def test_inspector_example_is_valid_and_uses_the_locked_server_command() -> None
     server_config = config["mcpServers"]["build-an-mcp-server"]
 
     assert server_config["type"] == "stdio"
+    assert server_config["protocolEra"] == "modern"
     assert server_config["command"] == "<ABSOLUTE_PATH_TO_UV>"
     assert server_config["args"] == [
         "run",

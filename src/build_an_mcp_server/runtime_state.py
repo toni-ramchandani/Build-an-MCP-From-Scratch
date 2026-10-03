@@ -86,16 +86,15 @@ def make_app_lifespan(
         runtime = RuntimeState()
         for cleanup in additional_cleanups:
             runtime.add_cleanup(cleanup)
-        if settings.enable_browser:
-            if browser_factory is None:
-                from .browser_runtime import BrowserRuntime
-
-                runtime.browser = BrowserRuntime.from_settings(settings)
-            else:
-                runtime.browser = browser_factory(settings)
-            runtime.add_cleanup(runtime.browser.aclose)
-
         try:
+            if settings.enable_browser:
+                if browser_factory is None:
+                    from .browser_runtime import BrowserRuntime
+
+                    runtime.browser = BrowserRuntime.from_settings(settings)
+                else:
+                    runtime.browser = browser_factory(settings)
+                runtime.add_cleanup(runtime.browser.aclose)
             yield AppContext(settings=settings, runtime=runtime)
         finally:
             await runtime.aclose()

@@ -2,6 +2,7 @@
   "mcpServers": {
     "build-an-mcp-server": {
       "type": "stdio",
+      "protocolEra": "modern",
       "command": "<ABSOLUTE_PATH_TO_UV>",
       "args": [
         "run",

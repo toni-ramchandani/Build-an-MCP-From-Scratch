@@ -104,19 +104,23 @@ def _expected_runtime_failure(exc: BaseException) -> BaseException | None:
 
 
 def _sanitized_error_message(exc: BaseException) -> str:
-    message = " ".join(str(exc).split()) or "runtime connection failed"
+    message = str(exc) or "runtime connection failed"
+    sensitive_values: set[str] = set()
 
     for key, value in os.environ.items():
         if not value:
             continue
         upper = key.upper()
-        sensitive = key == "MCP_WORKSPACE_ROOTS" or any(
-            marker in upper for marker in _SENSITIVE_MCP_NAME_PARTS
-        )
-        if sensitive:
-            message = message.replace(value, "<redacted>")
+        if upper == "MCP_WORKSPACE_ROOTS":
+            sensitive_values.add(value)
+            sensitive_values.update(part for part in value.split(os.pathsep) if part)
+        elif any(marker in upper for marker in _SENSITIVE_MCP_NAME_PARTS):
+            sensitive_values.add(value)
 
-    return message[:240]
+    for value in sorted(sensitive_values, key=len, reverse=True):
+        message = message.replace(value, "<redacted>")
+
+    return (" ".join(message.split()) or "runtime connection failed")[:240]
 
 
 def _report_runtime_failure(exc: BaseException) -> None:

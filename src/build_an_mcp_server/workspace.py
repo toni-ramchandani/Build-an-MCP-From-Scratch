@@ -65,13 +65,13 @@ class WorkspaceAdapter:
 
     def list_directory(self, root_id: str, relative_path: str, *, offset: int) -> DirectoryListing:
         root, relative, directory = self._resolve(root_id, relative_path)
-        if not directory.exists():
-            raise PublicToolError("The requested directory does not exist.")
-        if not directory.is_dir():
-            raise PublicToolError("The requested path is not a directory.")
-
         entries: list[DirectoryEntry] = []
         try:
+            if not directory.exists():
+                raise PublicToolError("The requested directory does not exist.")
+            if not directory.is_dir():
+                raise PublicToolError("The requested path is not a directory.")
+
             with os.scandir(directory) as scanner:
                 for index, item in enumerate(scanner, start=1):
                     if index > self._max_directory_scan:
@@ -109,12 +109,12 @@ class WorkspaceAdapter:
 
     def read_text(self, root_id: str, relative_path: str, *, offset_bytes: int) -> TextFileRead:
         root, relative, file_path = self._resolve(root_id, relative_path)
-        if not file_path.exists():
-            raise PublicToolError("The requested file does not exist.")
-        if not file_path.is_file():
-            raise PublicToolError("The requested path is not a regular file.")
-
         try:
+            if not file_path.exists():
+                raise PublicToolError("The requested file does not exist.")
+            if not file_path.is_file():
+                raise PublicToolError("The requested path is not a regular file.")
+
             with file_path.open("rb") as stream:
                 total_bytes = os.fstat(stream.fileno()).st_size
                 if offset_bytes > total_bytes:
@@ -271,6 +271,14 @@ class WorkspaceAdapter:
 
     @staticmethod
     def _decode_utf8_prefix(data: bytes, limit: int) -> tuple[str, int]:
+        # The caller supplies up to four look-ahead bytes. If no bytes lie
+        # beyond the budget, an incomplete character is at EOF, not a chunk
+        # boundary, and must not be silently deferred to the next call.
+        if len(data) <= limit:
+            try:
+                return data.decode("utf-8"), len(data)
+            except UnicodeDecodeError as exc:
+                raise PublicToolError("The file is not valid UTF-8 text.") from exc
         candidate = data[:limit]
         for removed in range(0, min(4, len(candidate) + 1)):
             prefix = candidate if removed == 0 else candidate[:-removed]

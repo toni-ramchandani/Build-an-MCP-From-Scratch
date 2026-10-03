@@ -11,6 +11,14 @@ The main protocol path is the [MCP specification revision
 `uv.lock` pins the official Python SDK to
 [`mcp==2.0.0`](https://github.com/modelcontextprotocol/python-sdk/releases/tag/v2.0.0).
 
+## Reading alongside the book
+
+This checkout is the complete reference implementation. The chapter listings
+reconstruct selected definitions in that application; they are not six
+independent historical snapshots. The [chapter source map](docs/chapter-source-map.md)
+identifies the definitions developed at each stage and the surrounding code
+already supplied by the checkout. Run the focused checks after each change.
+
 ## What the server exposes
 
 The default surface is deliberately small:
@@ -111,16 +119,18 @@ static production token scheme.
 
 ## Run Inspector
 
-Use the pinned Inspector (Node.js 22.19 or later) against the narrow minimal
-example:
+Use the pinned Inspector with the configuration in
+`scripts/inspector-stdio.mcp.json.example`. It explicitly selects the modern
+protocol era. Copy it outside the checkout, replace all three absolute-path
+placeholders, and keep the approved workspace free of `.env`.
+Run from the directory containing your resolved copy:
 
-```bash
-npx --yes @modelcontextprotocol/inspector@2.2.0 \
-  uv run python examples/ch02/minimal_add_server.py
+```text
+npx --yes @modelcontextprotocol/inspector@2.2.0 --config ./inspector-stdio.resolved.json
 ```
 
-Alternatively, adapt `scripts/inspector-stdio.mcp.json.example` with an explicit
-root. Avoid the SDK's `mcp dev` wrapper in a shared command: SDK v2.0.0 invokes
+Confirm MODERN mode and record the numeric revision with the observation.
+Avoid the SDK's `mcp dev` wrapper in a shared command: SDK v2.0.0 invokes
 an unversioned Inspector package.
 
 You can also drive the first-class SDK v2 client directly:
