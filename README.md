@@ -13,11 +13,21 @@ The main protocol path is the [MCP specification revision
 
 ## Reading alongside the book
 
-This checkout is the complete reference implementation. The chapter listings
-reconstruct selected definitions in that application; they are not six
-independent historical snapshots. The [chapter source map](docs/chapter-source-map.md)
-identifies the definitions developed at each stage and the surrounding code
-already supplied by the checkout. Run the focused checks after each change.
+This checkout contains the complete reference implementation. To build along
+with the book, reconstruct each named definition in its existing module while
+preserving the surrounding code supplied by the checkout. Listing captions
+identify complete files, complete definitions, and selected excerpts.
+
+Start with the [chapter source map](docs/chapter-source-map.md). For each of
+Chapters 1–6, it identifies the source locations, the work developed in the
+chapter, the supporting code already provided, and the focused checks with
+their expected evidence. Run the full verifier once before editing to establish
+a working baseline, then use the chapter checks as you make changes.
+
+The checkout represents one complete application rather than six historical
+chapter snapshots. A passing check on unchanged reference code establishes the
+baseline; reconstructing and explaining the chapter's definitions is the
+learning exercise.
 
 ## What the server exposes
 
@@ -218,6 +228,7 @@ This repository does not claim complete production security. Known boundaries:
 ├── .github/workflows/ci.yml
 ├── .env.example
 ├── docs/
+│   ├── chapter-source-map.md
 │   ├── repository-architecture.md
 │   └── verification.md
 ├── examples/
@@ -249,3 +260,4 @@ This repository does not claim complete production security. Known boundaries:
     ├── security/
     └── integration/
 ```
+
