@@ -168,5 +168,5 @@ class JwtVerifier:
             )
         except KeyServiceUnavailable:
             return None
-        except (jwt.PyJWTError, ValueError, TypeError, KeyError):
+        except (jwt.PyJWTError, ValueError, TypeError, KeyError, OverflowError):
             return None
