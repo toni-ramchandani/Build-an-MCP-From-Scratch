@@ -1,4 +1,4 @@
-"""Verify the built wheel's two console commands outside the checkout.
+"""Verify the built wheel's three console commands outside the checkout.
 
 Run after scripts/verify.py with the locked development environment. Dependencies
 are exported from uv.lock; the application is installed from the wheel only.
@@ -131,6 +131,18 @@ def main() -> None:
         stdio = binary / f"build-an-mcp-server{extension}"
         http_command = binary / f"build-an-mcp-server-http{extension}"
         assert stdio.is_file() and http_command.is_file()
+        secure_command = binary / f"build-an-mcp-server-secure{extension}"
+        assert secure_command.is_file()
+        _run(
+            [
+                str(python),
+                "-I",
+                str(Path(__file__).with_name("secure_package_probe.py")),
+                str(secure_command),
+                str(outside),
+            ],
+            cwd=outside,
+        )
         probe = [str(python), "-I", str(Path(__file__).resolve()), "--probe", str(stdio)]
         _run([*probe, "", str(workspace)], cwd=outside)
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:

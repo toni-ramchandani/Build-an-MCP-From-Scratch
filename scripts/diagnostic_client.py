@@ -151,9 +151,10 @@ async def _open_client(args: argparse.Namespace) -> AsyncGenerator[Client]:
 
     headers: dict[str, str] = {}
     access_token = os.environ.get("MCP_DIAGNOSTIC_ACCESS_TOKEN")
-    if access_token:
+    if access_token is not None:
         if (
-            not access_token.isascii()
+            not access_token
+            or not access_token.isascii()
             or len(access_token) > 16_384
             or any(ord(char) < 33 or ord(char) > 126 for char in access_token)
         ):
@@ -179,7 +180,10 @@ async def _open_client(args: argparse.Namespace) -> AsyncGenerator[Client]:
             )
         headers["Authorization"] = f"Bearer {access_token}"
     async with httpx2.AsyncClient(
-        trust_env=False, follow_redirects=False, headers=headers
+        trust_env=False,
+        follow_redirects=False,
+        timeout=httpx2.Timeout(30.0, read=300.0),
+        headers=headers,
     ) as http_client:
         transport = streamable_http_client(args.url, http_client=http_client)
         async with Client(transport, mode=PROTOCOL_VERSION, cache=None) as client:

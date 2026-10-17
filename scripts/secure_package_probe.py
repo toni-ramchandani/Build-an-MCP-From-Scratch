@@ -14,6 +14,7 @@ import sys
 import time
 from pathlib import Path
 from typing import Any, cast
+from unittest.mock import patch
 
 import httpx2
 import jwt
@@ -23,8 +24,10 @@ from mcp.client import Client
 from mcp.client.stdio import get_default_environment
 from mcp.client.streamable_http import streamable_http_client
 
+from build_an_mcp_server.models import TextFileRead
 from build_an_mcp_server.secure_http import create_secure_app
 from build_an_mcp_server.security_config import SecuritySettings
+from build_an_mcp_server.workspace import WorkspaceAdapter
 
 
 async def probe(console: str, directory: Path) -> None:
@@ -88,51 +91,67 @@ async def probe(console: str, directory: Path) -> None:
             headers={"typ": "at+jwt", "kid": "installed-key"},
         )
 
-    async with (
-        app.router.lifespan_context(app),
-        httpx2.AsyncClient(transport=httpx2.ASGITransport(app=app)) as http,
-    ):
-        http.headers["Authorization"] = f"Bearer {token()}"
-        async with Client(
-            streamable_http_client("http://127.0.0.1:8000/mcp", http_client=http),
-            mode="2026-07-28",
-            cache=None,
-        ) as client:
-            result = await client.call_tool(
-                "read_workspace_text", {"root_id": "root-1", "relative_path": "canary.txt"}
-            )
-            assert not result.is_error and result.structured_content is not None
-            assert result.structured_content["content"] == data.decode()
-        for access_token, status in (
-            (token(aud="https://other.example/mcp"), 401),
-            (token(scope="other"), 403),
+    calls: list[str] = []
+    original_read = WorkspaceAdapter.read_text
+
+    def observed_read(
+        self: WorkspaceAdapter, root_id: str, relative_path: str, *, offset_bytes: int
+    ) -> TextFileRead:
+        calls.append(relative_path)
+        return original_read(self, root_id, relative_path, offset_bytes=offset_bytes)
+
+    with patch.object(WorkspaceAdapter, "read_text", observed_read):
+        async with (
+            app.router.lifespan_context(app),
+            httpx2.AsyncClient(transport=httpx2.ASGITransport(app=app)) as http,
         ):
-            response = await http.post(
-                "http://127.0.0.1:8000/mcp",
-                headers={
-                    "Authorization": f"Bearer {access_token}",
-                    "Accept": "application/json, text/event-stream",
-                    "Mcp-Protocol-Version": "2026-07-28",
-                    "Mcp-Method": "tools/list",
-                },
-                json={
-                    "jsonrpc": "2.0",
-                    "id": 1,
-                    "method": "tools/list",
-                    "params": {
-                        "_meta": {
-                            "io.modelcontextprotocol/protocolVersion": "2026-07-28",
-                            "io.modelcontextprotocol/clientCapabilities": {},
-                            "io.modelcontextprotocol/clientInfo": {
-                                "name": "package-probe",
-                                "version": "1",
-                            },
-                        }
+            http.headers["Authorization"] = f"Bearer {token()}"
+            async with Client(
+                streamable_http_client("http://127.0.0.1:8000/mcp", http_client=http),
+                mode="2026-07-28",
+                cache=None,
+            ) as client:
+                result = await client.call_tool(
+                    "read_workspace_text", {"root_id": "root-1", "relative_path": "canary.txt"}
+                )
+                assert not result.is_error and result.structured_content is not None
+                assert result.structured_content["content"] == data.decode()
+            assert calls == ["canary.txt"]
+            calls.clear()
+            for access_token, status in (
+                (token(aud="https://other.example/mcp"), 401),
+                (token(scope="other"), 403),
+            ):
+                response = await http.post(
+                    "http://127.0.0.1:8000/mcp",
+                    headers={
+                        "Authorization": f"Bearer {access_token}",
+                        "Accept": "application/json, text/event-stream",
+                        "Mcp-Protocol-Version": "2026-07-28",
+                        "Mcp-Method": "tools/call",
+                        "Mcp-Name": "read_workspace_text",
                     },
-                },
-            )
-            assert response.status_code == status
-            assert "canary" not in response.text and access_token not in response.text
+                    json={
+                        "jsonrpc": "2.0",
+                        "id": 1,
+                        "method": "tools/call",
+                        "params": {
+                            "name": "read_workspace_text",
+                            "arguments": {"root_id": "root-1", "relative_path": "canary.txt"},
+                            "_meta": {
+                                "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+                                "io.modelcontextprotocol/clientCapabilities": {},
+                                "io.modelcontextprotocol/clientInfo": {
+                                    "name": "package-probe",
+                                    "version": "1",
+                                },
+                            },
+                        },
+                    },
+                )
+                assert response.status_code == status
+                assert calls == []
+                assert "canary" not in response.text and access_token not in response.text
     print(
         "installed secure app: signed-token read and refusal probes passed; "
         "issuer delivery controlled"

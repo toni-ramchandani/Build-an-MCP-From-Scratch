@@ -1,13 +1,13 @@
-# Chapter source map: Chapters 1–6
+# Chapter source map: Chapters 1–7
 
 This map connects the manuscript to the complete reference checkout. Each
 chapter develops or inspects part of the same application. The checkout already
 contains the implementation, test harness, and supporting code used throughout
 these chapters.
 
-Source baseline for this map: `7ac87284656691c83d6b99d334132a3f661863d5`.
-The paths and listing numbers below correspond to the reviewed Chapters 1–6.
-When the manuscript or source changes, reconcile this map with both.
+The paths and listing numbers below correspond to Chapters 1–7. Record the
+source revision with each verification result. When the manuscript or source
+changes, reconcile this map with both.
 
 ## How to work through the book
 
@@ -206,6 +206,41 @@ Record the Inspector and desktop-host observations separately, including the
 source revision, client version, protocol mode, discovered surface, and
 bounded-read result. Passing template tests does not prove that a desktop host
 actually launched and used the server.
+
+## Chapter 7 — Securing the MCP server
+
+| Listing or exercise | Source location | Definition or responsibility |
+| --- | --- | --- |
+| 7.1 | `src/build_an_mcp_server/security_config.py` | Selected `_security_policy` branches |
+| 7.2 | `src/build_an_mcp_server/auth_verifier.py` | Selected `verify_token` regions; intervening claim checks remain required |
+| 7.3 | `src/build_an_mcp_server/auth_verifier.py` | Selected `_key` regions inside the same lock and `try` block |
+| 7.4 | `src/build_an_mcp_server/secure_http.py` | Verifier injection and composed lifespan within `create_secure_app` |
+| 7.5 | `src/build_an_mcp_server/http_policy.py` | Selected `HttpScopePolicy` branches |
+| 7.6 | `src/build_an_mcp_server/admission.py` | `WorkSlots.reserve` |
+| 7.7 | `src/build_an_mcp_server/corpus_policy.py` | Selected `validate_corpus` checks |
+| 7.8 | `src/build_an_mcp_server/workspace.py` | `_write_text` |
+| 7.9 | `tests/security/test_write_faults.py` | Replacement failure and cleanup test |
+| 7.10 | `tests/security/test_security_disclosure.py` | Selected verifier-failure output assertions |
+| 7.11 | `scripts/diagnostic_client.py` | HTTP branch of `_open_client` |
+| Synthetic corpus | `examples/ch07/prepare_corpus.py` | New fixture and valid approval record |
+| Fixtures and ownership | `tests/security/secure_helpers.py`, `tests/security/test_security_ownership.py` | Signed tokens, explicit settings, cleanup and hostile-content checks |
+| Refusal and capacity evidence | `tests/security/test_security_boundaries.py` | Callback entry, header checks and separate admission ceilings |
+| Installed secure application | `scripts/secure_package_probe.py`, `scripts/verify_installed.py` | Installed code with controlled key delivery and console rejection |
+
+Preserve `_parse_keys`, `IngressLimit`, `AuthenticatedAdmission`, the omitted
+claim checks and the application-construction code around selected excerpts.
+The complete definitions are supplied; the printed fragments are not separate
+files to concatenate.
+
+```text
+uv run --frozen python examples/ch07/prepare_corpus.py
+uv run --frozen python -m pytest -q tests/security
+uv run --frozen python scripts/verify.py
+```
+
+Use [the secured configuration](secured-http.md) for explicit settings and the
+diagnostic command. A real issuer/client result and deployed acceptance remain
+separate from the deterministic signed-token fixtures.
 
 ## Scope of these checks
 
