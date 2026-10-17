@@ -149,7 +149,38 @@ async def _open_client(args: argparse.Namespace) -> AsyncGenerator[Client]:
                 yield client
         return
 
-    async with httpx2.AsyncClient(trust_env=False) as http_client:
+    headers: dict[str, str] = {}
+    access_token = os.environ.get("MCP_DIAGNOSTIC_ACCESS_TOKEN")
+    if access_token:
+        if (
+            not access_token.isascii()
+            or len(access_token) > 16_384
+            or any(ord(char) < 33 or ord(char) > 126 for char in access_token)
+        ):
+            raise MCPError(-32602, "Invalid diagnostic access token format")
+        try:
+            target = httpx2.URL(args.url)
+        except httpx2.InvalidURL:
+            raise MCPError(-32602, "Invalid diagnostic URL") from None
+        if (
+            not target.is_absolute_url
+            or target.username
+            or target.password
+            or target.query
+            or target.fragment
+            or not (
+                target.scheme == "https"
+                or (target.scheme == "http" and target.host in {"127.0.0.1", "::1"})
+            )
+        ):
+            raise MCPError(
+                -32602,
+                "Bearer transport requires HTTPS or literal-loopback HTTP",
+            )
+        headers["Authorization"] = f"Bearer {access_token}"
+    async with httpx2.AsyncClient(
+        trust_env=False, follow_redirects=False, headers=headers
+    ) as http_client:
         transport = streamable_http_client(args.url, http_client=http_client)
         async with Client(transport, mode=PROTOCOL_VERSION, cache=None) as client:
             yield client
