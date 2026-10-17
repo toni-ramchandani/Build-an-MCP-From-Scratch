@@ -34,6 +34,7 @@ dev = [
 [project.scripts]
 build-an-mcp-server = "build_an_mcp_server.server:main"
 build-an-mcp-server-http = "build_an_mcp_server.http_server:main"
+build-an-mcp-server-secure = "build_an_mcp_server.secure_http:main"
 
 [build-system]
 requires = ["hatchling>=1.27,<2"]
