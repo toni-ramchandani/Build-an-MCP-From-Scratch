@@ -27,7 +27,9 @@ scope is `workspace:read`. Tokens require RS256, `typ=at+jwt`, a known key
 identifier, exact issuer/single audience, integer issue/expiry times, subject,
 approved `client_id`, and a space-separated scope string. Maximum lifetime
 defaults to 900 seconds, with zero clock tolerance. This acceptance contract
-requires actual issuer/client compatibility verification.
+requires actual issuer/client compatibility verification. The
+[selected Auth0 lab](ch07-live-auth.md) supplies the pre-registration, PKCE,
+callback and observation procedure; its external run remains separate evidence.
 
 Key delivery permits no redirects, a 64 KiB uncompressed document, and at most
 eight supported RSA public keys. Network timeout is two seconds; retrieval has

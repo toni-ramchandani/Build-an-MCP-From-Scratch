@@ -213,7 +213,7 @@ actually launched and used the server.
 | --- | --- | --- |
 | 7.1 | `src/build_an_mcp_server/security_config.py` | Selected `_security_policy` branches |
 | 7.2 | `src/build_an_mcp_server/auth_verifier.py` | Selected `verify_token` regions; intervening claim checks remain required |
-| 7.3 | `src/build_an_mcp_server/auth_verifier.py` | Selected `_key` regions inside the same lock and `try` block |
+| 7.3 | `src/build_an_mcp_server/auth_verifier.py` | Complete `JwtVerifier._key` method, including the cache lock, bounded retrieval and refusal path |
 | 7.4 | `src/build_an_mcp_server/secure_http.py` | Verifier injection and composed lifespan within `create_secure_app` |
 | 7.5 | `src/build_an_mcp_server/http_policy.py` | Selected `HttpScopePolicy` branches |
 | 7.6 | `src/build_an_mcp_server/admission.py` | `WorkSlots.reserve` |
@@ -226,6 +226,7 @@ actually launched and used the server.
 | Fixtures and ownership | `tests/security/secure_helpers.py`, `tests/security/test_security_ownership.py` | Signed tokens, explicit settings, cleanup and hostile-content checks |
 | Refusal and capacity evidence | `tests/security/test_security_boundaries.py` | Callback entry, header checks and separate admission ceilings |
 | Installed secure application | `scripts/secure_package_probe.py`, `scripts/verify_installed.py` | Installed code with controlled key delivery and console rejection |
+| Live issuer/client lab | `examples/ch07/live_auth.py`, `examples/ch07/start_secure.ps1`, `docs/ch07-live-auth.md` | Selected external Auth0 login, PKCE callback, network MCP read and sanitized observations |
 
 Preserve `_parse_keys`, `IngressLimit`, `AuthenticatedAdmission`, the omitted
 claim checks and the application-construction code around selected excerpts.
