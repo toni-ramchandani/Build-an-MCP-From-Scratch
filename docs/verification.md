@@ -47,10 +47,18 @@ uv run --frozen python scripts/verify_installed.py
 
 This builds the source distribution, builds the wheel from that source
 distribution, installs the wheel into a separate environment using locked
-dependencies, and then exercises both console commands
-(`build-an-mcp-server` and `build-an-mcp-server-http`) from outside the checkout.
-Each console command performs tool discovery and a bounded file read over its
-transport: stdio and Streamable HTTP.
+dependencies, and then exercises the installed application from outside the
+checkout. `build-an-mcp-server` and `build-an-mcp-server-http` perform discovery
+and a bounded file read over stdio and Streamable HTTP. The secured console
+command, `build-an-mcp-server-secure`, must reject incomplete configuration.
+The positive secured-application read and refusal probes use ASGI transport
+and controlled trusted-key delivery through `scripts/secure_package_probe.py`.
+They establish installed construction and token enforcement, not a successful
+external login or a positive secure-console network journey.
+
+The separate [Chapter 7 live-authentication lab](ch07-live-auth.md) requires an
+external issuer, pre-registered public client and browser login. Its results
+are recorded independently; the deterministic verifier does not run that flow.
 
 ## Live integration tests
 
@@ -88,4 +96,4 @@ Not proven by these checks:
   races;
 - a complete OAuth authorization-server deployment, token issuance, or consent;
 - remote (non-loopback) Streamable HTTP deployment, TLS, or proxy trust;
-- rate limiting or audit logging.
+- deployed service-wide rate limits, durable audit logging, or bounded log-export/retention behavior.

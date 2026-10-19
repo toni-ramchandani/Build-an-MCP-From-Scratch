@@ -19,12 +19,12 @@ preserving the surrounding code supplied by the checkout. Listing captions
 identify complete files, complete definitions, and selected excerpts.
 
 Start with the [chapter source map](docs/chapter-source-map.md). For each of
-Chapters 1–6, it identifies the source locations, the work developed in the
+Chapters 1–7, it identifies the source locations, the work developed in the
 chapter, the supporting code already provided, and the focused checks with
 their expected evidence. Run the full verifier once before editing to establish
 a working baseline, then use the chapter checks as you make changes.
 
-The checkout represents one complete application rather than six historical
+The checkout represents one complete application rather than separate historical
 chapter snapshots. A passing check on unchanged reference code establishes the
 baseline; reconstructing and explaining the chapter's definitions is the
 learning exercise.
@@ -127,6 +127,15 @@ Authenticated HTTP additionally requires an application-supplied SDK
 `TokenVerifier`; this repository does not ship an authorization server or a
 static production token scheme.
 
+## Run secured HTTP
+
+Chapter 7 supplies a separate `build-an-mcp-server-secure` command with a real
+JWT verifier, approved-corpus validation, scope policy and bounded admission.
+Use [the secured configuration guide](docs/secured-http.md) for its explicit
+inputs and [the live-authentication lab](docs/ch07-live-auth.md) for a selected
+external issuer and pre-registered public client. The ordinary HTTP command
+above remains the local development path.
+
 ## Run Inspector
 
 Use the pinned Inspector with the configuration in
@@ -167,8 +176,9 @@ uv run python scripts/verify.py
 
 It checks formatting, lint, strict static types, unit and domain behavior,
 in-process MCP contracts, real stdio and HTTP boundaries, security-negative
-cases, package construction, and both installed console commands from a separate
-environment outside the checkout. See [`docs/verification.md`](docs/verification.md)
+cases, package construction, installed stdio and HTTP discovery/read checks,
+secure-console configuration rejection, and controlled installed secure-application
+probes from a separate environment outside the checkout. See [`docs/verification.md`](docs/verification.md)
 for details and for what is and is not proven.
 
 Live GitHub and browser tests are marked `integration`; both require
